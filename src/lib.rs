@@ -1,8 +1,10 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
+mod distance;
 mod graph;
 
+pub use distance::earth_distance;
 pub use graph::Graph;
 
 /// Represents an element of the [Graph].

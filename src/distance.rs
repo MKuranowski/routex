@@ -25,3 +25,24 @@ pub fn earth_distance(lat1: f32, lon1: f32, lat2: f32, lon2: f32) -> f32 {
 
     (EARTH_DIAMETER * h.sqrt().asin()) as f32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const CENTRUM: (f32, f32) = (52.23024, 21.01062);
+    const STADION: (f32, f32) = (52.23852, 21.0446);
+    const FALENICA: (f32, f32) = (52.16125, 21.21147);
+
+    #[test]
+    fn centrum_stadion() {
+        let d = earth_distance(CENTRUM.0, CENTRUM.1, STADION.0, STADION.1);
+        assert_eq!(d, 2.49049);
+    }
+
+    #[test]
+    fn centrum_falenica() {
+        let d = earth_distance(CENTRUM.0, CENTRUM.1, FALENICA.0, FALENICA.1);
+        assert_eq!(d, 15.692483);
+    }
+}

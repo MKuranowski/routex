@@ -32,6 +32,8 @@ impl Graph {
     /// [Edge] cost invariant (and thus break route finding) and
     /// is therefore disallowed.
     pub fn set_node(&mut self, node: Node) {
+        assert_ne!(node.id, 0);
+
         match self.0.entry(node.id) {
             Entry::Vacant(e) => {
                 e.insert((node, Vec::default()));
@@ -99,6 +101,9 @@ impl Graph {
 
     /// Creates or updates an [Edge] from a node with a given id.
     pub fn set_edge(&mut self, from_id: i64, edge: Edge) {
+        assert_ne!(from_id, 0);
+        assert_ne!(edge.to, 0);
+
         if let Some((_, edges)) = self.0.get_mut(&from_id) {
             if let Some(candidate) = edges.iter_mut().find(|e| e.to == edge.to) {
                 *candidate = edge;

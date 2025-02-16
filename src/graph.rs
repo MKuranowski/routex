@@ -1,7 +1,7 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
-use crate::{Edge, Node};
+use crate::{earth_distance, Edge, Node};
 use std::collections::btree_map::{BTreeMap, Entry};
 
 /// Represents an OpenStreetMap network as a set of [Nodes](Node)
@@ -51,6 +51,24 @@ impl Graph {
     /// of the [Edge] cost invariant (and break route finding) is disallowed.
     pub fn delete_node(&mut self, id: i64) {
         self.0.remove(&id);
+    }
+
+    /// Finds the closest canonical (`id == osm_id`) [Node] to the given position.
+    ///
+    /// This function requires computing the distance to every [Node] in the graph,
+    /// and is not suitable for large graphs.
+    pub fn find_nearest_node(&self, lat: f32, lon: f32) -> Option<Node> {
+        self.0
+            .iter()
+            .filter_map(|(_, &(nd, _))| {
+                if nd.id == nd.osm_id {
+                    Some((earth_distance(lat, lon, nd.lat, nd.lon), nd))
+                } else {
+                    None
+                }
+            })
+            .min_by(|(a_dist, _), (b_dist, _)| a_dist.partial_cmp(b_dist).unwrap())
+            .map(|(_, nd)| nd)
     }
 
     /// Gets all outgoing [Edges](Edge) from a node with a given id.

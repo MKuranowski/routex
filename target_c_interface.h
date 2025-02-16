@@ -27,7 +27,7 @@ RoutexNode routex_graph_next_node(RoutexGraphIterator*);
 RoutexNode routex_graph_get_node(RoutexGraph const*, int64_t id);
 bool routex_graph_set_node(RoutexGraph*, RoutexNode, bool clear_edges);
 bool routex_graph_delete_node(RoutexGraph*, int64_t id);
-int64_t routex_graph_find_nearest_node(RoutexGraph const*, float lat, float lon);
+RoutexNode routex_graph_find_nearest_node(RoutexGraph const*, float lat, float lon);
 
 size_t routex_graph_get_edges(RoutexGraph const*, int64_t from_id, RoutexEdge const**);
 float routex_graph_get_edge(RoutexGraph const*, int64_t from_id, int64_t to_id);

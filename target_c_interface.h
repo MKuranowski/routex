@@ -72,7 +72,7 @@ void routex_graph_add_from_osm_memory(RoutexGraph*, RoutexOsmProfile const*, uns
 typedef enum RoutexRouteResultType {
     RoutexRouteResultTypeOk = 0,
     RoutexRouteResultTypeInvalidReference = 1,
-    RoutexRouteResultTypeGaveUp = 2,
+    RoutexRouteResultTypeStepLimitExceeded = 2,
 } RoutexRouteResultType;
 
 typedef struct RoutexRouteResult {

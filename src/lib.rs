@@ -1,9 +1,11 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
+mod astar;
 mod distance;
 mod graph;
 
+pub use astar::{find_route, find_route_without_turn_around, AStarError, DEFAULT_STEP_LIMIT};
 pub use distance::earth_distance;
 pub use graph::Graph;
 

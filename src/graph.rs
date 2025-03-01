@@ -7,7 +7,7 @@ use std::collections::btree_map::{BTreeMap, Entry};
 /// Represents an OpenStreetMap network as a set of [Nodes](Node)
 /// and [Edges](Edge) between them.
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct Graph(BTreeMap<i64, (Node, Vec<Edge>)>);
+pub struct Graph(pub BTreeMap<i64, (Node, Vec<Edge>)>);
 
 impl Graph {
     /// Returns the number of nodes in the graph.
@@ -18,6 +18,33 @@ impl Graph {
     /// Returns an iterator over all [Nodes](Node) in the graph.
     pub fn iter(&self) -> impl Iterator<Item = &Node> {
         self.0.iter().map(|(_, (node, _))| node)
+    }
+
+    /// Creates a Graph from 2 separate iterators over [Nodes](Node)
+    /// and [Edges](Edge).
+    ///
+    /// Example:
+    ///
+    /// ```rs
+    /// let g = Graph::from_iter(
+    ///     [Node { ... }, Node { ... }],
+    ///     [(1, 2, 10.0), (2, 1, 10.0)],
+    /// );
+    /// ```
+    pub fn from_iter<N, E>(nodes: N, edges: E) -> Self
+    where
+        N: IntoIterator<Item = Node>,
+        E: IntoIterator<Item = (i64, i64, f32)>,
+    {
+        let mut g = Graph(BTreeMap::from_iter(
+            nodes.into_iter().map(|n| (n.id, (n, vec![]))),
+        ));
+
+        edges.into_iter().for_each(|(from, to, cost)| {
+            g.set_edge(from, Edge { to: to, cost });
+        });
+
+        return g;
     }
 
     /// Retrieves a [Node] with the provided id.

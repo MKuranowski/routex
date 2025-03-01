@@ -4,10 +4,12 @@
 mod astar;
 mod distance;
 mod graph;
+mod kd;
 
 pub use astar::{find_route, find_route_without_turn_around, AStarError, DEFAULT_STEP_LIMIT};
 pub use distance::earth_distance;
 pub use graph::Graph;
+pub use kd::KDTree;
 
 /// Represents an element of the [Graph].
 ///

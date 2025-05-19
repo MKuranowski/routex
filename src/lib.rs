@@ -5,6 +5,7 @@ mod astar;
 mod distance;
 mod graph;
 mod kd;
+pub mod osm;
 
 pub use astar::{find_route, find_route_without_turn_around, AStarError, DEFAULT_STEP_LIMIT};
 pub use distance::earth_distance;

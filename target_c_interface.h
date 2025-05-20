@@ -17,7 +17,7 @@ typedef struct RoutexEdge {
 } RoutexEdge;
 
 typedef struct RoutexGraph RoutexGraph;
-typedef struct RoutexGraph RoutexGraphIterator;
+typedef struct RoutexGraphIterator RoutexGraphIterator;
 
 RoutexGraph* routex_graph_new(void);
 void routex_graph_delete(RoutexGraph*);

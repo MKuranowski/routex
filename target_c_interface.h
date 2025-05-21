@@ -35,18 +35,18 @@ bool routex_graph_set_edge(RoutexGraph*, int64_t from_id, RoutexEdge);
 bool routex_graph_delete_edge(RoutexGraph*, int64_t from_id, int64_t to_id);
 
 typedef struct RoutexOsmProfilePenalty {
-    unsigned char* key;
-    unsigned char* value;
+    char const* key;
+    char const* value;
     float penalty;
 } RoutexOsmProfilePenalty;
 
 typedef struct RoutexOsmProfile {
-    unsigned char* name;
+    char const* name;
 
     RoutexOsmProfilePenalty* penalties;
     size_t penalties_len;
 
-    unsigned char** access;
+    char const** access;
     size_t access_len;
 
     bool disallow_motorroad;
@@ -67,8 +67,8 @@ typedef struct RoutexOsmOptions {
     float bbox[4];
 } RoutexOsmOptions;
 
-void routex_graph_add_from_osm_file(RoutexGraph*, RoutexOsmOptions const*, unsigned char* filename);
-void routex_graph_add_from_osm_memory(RoutexGraph*, RoutexOsmOptions const*, unsigned char* content, size_t content_len);
+void routex_graph_add_from_osm_file(RoutexGraph*, RoutexOsmOptions const*, char const* filename);
+void routex_graph_add_from_osm_memory(RoutexGraph*, RoutexOsmOptions const*, unsigned char const* content, size_t content_len);
 
 typedef enum RoutexRouteResultType {
     RoutexRouteResultTypeOk = 0,

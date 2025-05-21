@@ -6,3 +6,4 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
+quick-xml = "0.37.2"

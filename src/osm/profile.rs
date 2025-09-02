@@ -60,7 +60,7 @@ pub struct Penalty<'a> {
     pub value: &'a str,
 
     /// Multiplier of the length, to express preference for a specific way.
-    /// Must be not less than one and a normal floating-point number.
+    /// Must be not less than one and a finite floating-point number.
     pub penalty: f32,
 }
 

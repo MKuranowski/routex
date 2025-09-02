@@ -20,6 +20,16 @@ pub(super) enum FeatureType {
     Relation,
 }
 
+impl std::fmt::Display for FeatureType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Node => write!(f, "node"),
+            Self::Way => write!(f, "way"),
+            Self::Relation => write!(f, "relation"),
+        }
+    }
+}
+
 /// Represents a member of an [OSM relation](https://wiki.openstreetmap.org/wiki/Relation).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RelationMember {

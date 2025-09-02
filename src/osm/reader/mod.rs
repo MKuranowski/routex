@@ -47,7 +47,7 @@ pub struct Options<'a> {
 
     /// Filter features by a specific bounding box. In order: left (min lon), bottom (min lat),
     /// right (max lon), top (max lat). Ignored if all values are set to zero, or at least one
-    /// of them is NaN.
+    /// of them is not finite.
     ///
     /// Currently ignored.
     bbox: [f32; 4],

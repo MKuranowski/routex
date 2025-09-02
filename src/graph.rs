@@ -158,4 +158,24 @@ impl Graph {
             }
         }
     }
+
+    /// Replaces all edges from `dst` by cloning all edges outgoing from `src`.
+    pub(crate) fn clone_edges(&mut self, dst: i64, src: i64) {
+        // Don't clone if dst doesn't exist
+        if !self.0.contains_key(&dst) {
+            return;
+        }
+
+        // Get a clone of source edges
+        let edges = if let Some((_, src_edges)) = self.0.get(&src) {
+            src_edges.clone()
+        } else {
+            Vec::new()
+        };
+
+        // Overwrite dst edges
+        if let Some((_, dst_edges)) = self.0.get_mut(&dst) {
+            *dst_edges = edges;
+        }
+    }
 }

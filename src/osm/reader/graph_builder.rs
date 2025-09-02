@@ -20,6 +20,7 @@ pub(super) struct GraphBuilder<'a> {
     phantom_node_id_counter: i64,
     unused_nodes: HashSet<i64>,
     way_nodes: HashMap<i64, Vec<i64>>,
+    ignore_bbox: bool,
 }
 
 impl<'a> GraphBuilder<'a> {
@@ -30,12 +31,17 @@ impl<'a> GraphBuilder<'a> {
         let phantom_node_id_counter =
             MAX_NODE_ID.max(g.0.iter().map(|(&node_id, _)| node_id).max().unwrap_or(0));
 
+        // TODO: Log invalid bounding boxes instead of discarding them
+        let ignore_bbox =
+            options.bbox.iter().all(|&x| x == 0.0) || options.bbox.iter().any(|x| !x.is_finite());
+
         Self {
             g,
             options,
             phantom_node_id_counter,
             unused_nodes: HashSet::default(),
             way_nodes: HashMap::default(),
+            ignore_bbox,
         }
     }
 
@@ -68,7 +74,7 @@ impl<'a> GraphBuilder<'a> {
     fn add_node(&mut self, n: Node) {
         // TODO: Log errors instead of silencing them
 
-        if Self::is_valid_node_id(n.id) {
+        if Self::is_valid_node_id(n.id) && self.is_in_bbox(n.lat, n.lon) {
             debug_assert_eq!(n.id, n.osm_id);
             self.g.set_node(n);
         }
@@ -76,6 +82,14 @@ impl<'a> GraphBuilder<'a> {
 
     fn is_valid_node_id(id: i64) -> bool {
         id != 0 && id < MAX_NODE_ID
+    }
+
+    fn is_in_bbox(&self, lat: f32, lon: f32) -> bool {
+        if self.ignore_bbox {
+            return true;
+        }
+        let [min_lon, min_lat, max_lon, max_lat] = self.options.bbox;
+        lat >= min_lat && lat <= max_lat && lon >= min_lon && lon <= max_lon
     }
 
     fn add_way(&mut self, w: model::Way) {

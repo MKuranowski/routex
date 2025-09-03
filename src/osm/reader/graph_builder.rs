@@ -675,7 +675,7 @@ mod tests {
         };
     }
 
-    pub const DEFAULT_OPTIONS: Options<'static> = Options {
+    const DEFAULT_OPTIONS: Options<'static> = Options {
         profile: &CAR_PROFILE,
         file_format: FileFormat::Xml,
         bbox: [0.0; 4],

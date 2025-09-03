@@ -40,15 +40,15 @@ pub enum FileFormat {
 #[derive(Debug)]
 pub struct Options<'a> {
     /// How OSM features should be interpreted and converted into a [Graph].
-    profile: &'a Profile<'a>,
+    pub profile: &'a Profile<'a>,
 
     /// Format of the input data. Currently, only [FileFormat::Xml] is supported.
-    file_format: FileFormat,
+    pub file_format: FileFormat,
 
     /// Filter features by a specific bounding box. In order: left (min lon), bottom (min lat),
     /// right (max lon), top (max lat). Ignored if all values are set to zero, or at least one
     /// of them is not finite.
-    bbox: [f32; 4],
+    pub bbox: [f32; 4],
 }
 
 /// Internal trait for objects which can stream [osm features](model::Feature)

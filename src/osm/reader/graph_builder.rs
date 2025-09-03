@@ -74,9 +74,13 @@ impl<'a> GraphBuilder<'a> {
     fn add_node(&mut self, n: Node) {
         // TODO: Log errors instead of silencing them
 
-        if Self::is_valid_node_id(n.id) && self.is_in_bbox(n.lat, n.lon) {
+        if self.g.get_node(n.id).is_none()
+            && Self::is_valid_node_id(n.id)
+            && self.is_in_bbox(n.lat, n.lon)
+        {
             debug_assert_eq!(n.id, n.osm_id);
             self.g.set_node(n);
+            self.unused_nodes.insert(n.id);
         }
     }
 
@@ -445,11 +449,11 @@ impl GraphChange {
 
         let mut cloned_nodes = vec![nodes[0]];
         for i in 1..nodes.len() {
-            let previous_node_id = nodes[i - 1];
+            let previous_node_id = cloned_nodes[i - 1];
             let osm_id = nodes[i];
             let candidate_node_id = self.get_to_node_id_by_edge(g, previous_node_id, osm_id)?;
 
-            let is_cloned = osm_id == candidate_node_id;
+            let is_cloned = osm_id != candidate_node_id;
             let is_last = Some(osm_id) == nodes.last().cloned();
 
             // We need to make a clone of `osm_id` if we don't have a cloned node already and it's not the last node
@@ -521,7 +525,9 @@ impl GraphChange {
         // If `from` is cloned, ensure only the from-to edge is cloned
         let original_from = self.new_nodes.get(&from).cloned().unwrap_or(from);
         for edge in g.get_edges(original_from) {
-            self.edges_to_remove.insert((from, edge.to));
+            if edge.to != to {
+                self.edges_to_remove.insert((from, edge.to));
+            }
         }
     }
 
@@ -565,6 +571,1045 @@ impl GraphChange {
             for (&to, &cost) in edges {
                 g.set_edge(from, Edge { to, cost });
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::{FileFormat, CAR_PROFILE};
+    use super::super::model::{FeatureType, Relation, RelationMember, Way};
+    use super::*;
+
+    macro_rules! tags {
+        {} => { HashMap::default() };
+        {$( $k:literal : $v:literal ),+} => {
+            HashMap::from_iter([ $( ($k.to_string(), $v.to_string()) ),+ ])
+        };
+    }
+
+    macro_rules! n {
+        ($id:expr, $lat:expr, $lon:expr) => {
+            Node {
+                id: $id,
+                osm_id: $id,
+                lat: $lat,
+                lon: $lon,
+            }
+        };
+
+        ($id:expr, $osm_id:expr, $lat:expr, $lon:expr) => {
+            Node {
+                id: $id,
+                osm_id: $osm_id,
+                lat: $lat,
+                lon: $lon,
+            }
+        };
+    }
+
+    macro_rules! w {
+        ($id:expr, $nodes:expr) => {
+            Way {
+                id: $id,
+                nodes: $nodes,
+                tags: HashMap::default(),
+            }
+        };
+
+        ($id:expr, $nodes:expr, $tags:expr) => {
+            Way {
+                id: $id,
+                nodes: $nodes,
+                tags: $tags,
+            }
+        };
+    }
+
+    macro_rules! m {
+        ($type_:expr, $ref_:expr, $role:expr) => {
+            RelationMember {
+                type_: $type_,
+                ref_: $ref_,
+                role: $role.to_string(),
+            }
+        };
+    }
+
+    macro_rules! r {
+        ($id:expr, $members:expr) => {
+            Relation {
+                id: $id,
+                members: $members,
+                tags: HashMap::default(),
+            }
+        };
+
+        ($id:expr, $members:expr, $tags:expr) => {
+            Relation {
+                id: $id,
+                members: $members,
+                tags: $tags,
+            }
+        };
+    }
+
+    macro_rules! e {
+        ($to:expr, $cost:expr) => {
+            Edge {
+                to: $to,
+                cost: $cost,
+            }
+        };
+    }
+
+    macro_rules! assert_edge {
+        ($graph:expr, $from:expr, $to:expr) => {
+            assert!($graph.get_edge($from, $to).is_finite());
+        };
+    }
+
+    macro_rules! assert_no_edge {
+        ($graph:expr, $from:expr, $to:expr) => {
+            assert!($graph.get_edge($from, $to).is_infinite());
+        };
+    }
+
+    pub const DEFAULT_OPTIONS: Options<'static> = Options {
+        profile: &CAR_PROFILE,
+        file_format: FileFormat::Xml,
+        bbox: [0.0; 4],
+    };
+
+    mod graph_builder {
+        use super::*;
+
+        #[test]
+        fn test_add_node() {
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(1, 0.0, 0.0));
+
+                assert!(b.unused_nodes.contains(&1));
+            }
+
+            assert_eq!(
+                g.get_node(1),
+                Some(Node {
+                    id: 1,
+                    osm_id: 1,
+                    lat: 0.0,
+                    lon: 0.0
+                })
+            );
+        }
+
+        #[test]
+        fn test_add_node_duplicate() {
+            let mut g = Graph::default();
+            g.set_node(n!(1, 0.0, 0.0));
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(1, 0.1, -4.2));
+            }
+
+            assert_eq!(g.get_node(1), Some(n!(1, 0.0, 0.0)));
+        }
+
+        #[test]
+        fn test_add_node_big_osm_id() {
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(MAX_NODE_ID, 0.0, 0.0));
+            }
+
+            assert_eq!(g.get_node(MAX_NODE_ID), None);
+        }
+
+        #[test]
+        fn test_add_way() {
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 1.0, 0.0));
+                b.add_node(n!(3, 0.0, 1.0));
+                b.add_way(w!(1, vec![1, 2, 3], tags!("highway": "primary")));
+
+                assert!(b.unused_nodes.is_empty());
+                assert_eq!(b.way_nodes.get(&1), Some(&vec![1, 2, 3]));
+            }
+
+            assert_edge!(g, 1, 2);
+            assert_edge!(g, 2, 3);
+            assert_no_edge!(g, 1, 3);
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 2, 1);
+            assert_no_edge!(g, 3, 1);
+        }
+
+        #[test]
+        fn test_add_way_one_way() {
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 1.0, 0.0));
+                b.add_node(n!(3, 0.0, 1.0));
+                b.add_way(w!(
+                    1,
+                    vec![1, 2, 3],
+                    tags!("highway": "primary", "oneway": "yes")
+                ));
+
+                assert!(b.unused_nodes.is_empty());
+                assert_eq!(b.way_nodes.get(&1), Some(&vec![1, 2, 3]));
+            }
+
+            assert_edge!(g, 1, 2);
+            assert_edge!(g, 2, 3);
+            assert_no_edge!(g, 1, 3);
+            assert_no_edge!(g, 3, 2);
+            assert_no_edge!(g, 2, 1);
+            assert_no_edge!(g, 3, 1);
+        }
+
+        #[test]
+        fn test_add_way_not_routable() {
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_way(w!(
+                    1,
+                    vec![1, 2, 3],
+                    tags!("highway": "primary", "access": "no")
+                ));
+
+                assert!(b.unused_nodes.contains(&1));
+                assert!(b.unused_nodes.contains(&2));
+                assert!(b.unused_nodes.contains(&3));
+                assert!(!b.way_nodes.contains_key(&10));
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_no_edge!(g, 2, 3);
+            assert_no_edge!(g, 1, 3);
+            assert_no_edge!(g, 3, 2);
+            assert_no_edge!(g, 2, 1);
+            assert_no_edge!(g, 3, 1);
+        }
+
+        #[test]
+        fn test_add_relation_prohibitory() {
+            //     4
+            //     │
+            // 1───2───3
+            // no_left_turn: 1->2->4
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_left_turn")
+                ));
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+
+            assert_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 2);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+        }
+
+        #[test]
+        fn test_add_relation_prohibitory_not_applicable() {
+            //     4
+            //     ↓
+            // 1───2───3
+            // no_left_turn: 1->2->4
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(
+                    12,
+                    vec![4, 2],
+                    tags!("highway": "primary", "oneway": "yes")
+                ));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_left_turn")
+                ));
+
+                assert_eq!(b.phantom_node_id_counter, 100);
+            }
+
+            assert!(g.get_node(101).is_none());
+
+            assert_edge!(g, 1, 2);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_no_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+        }
+
+        #[test]
+        fn test_add_relation_two_prohibitory() {
+            //     4
+            //     │
+            // 1───2───3
+            // no_left_turn: 1->2->4
+            // no_right_turn: 4->2->1
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_left_turn")
+                ));
+                b.add_relation(r!(
+                    21,
+                    vec![
+                        m!(FeatureType::Way, 12, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 10, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_right_turn")
+                ));
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+
+            assert_no_edge!(g, 4, 2);
+            assert_edge!(g, 4, 102);
+
+            assert_edge!(g, 101, 1);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+
+            assert_no_edge!(g, 102, 1);
+            assert_no_edge!(g, 102, 2);
+            assert_edge!(g, 102, 3);
+            assert_edge!(g, 102, 4);
+        }
+
+        #[test]
+        fn test_add_relation_two_prohibitory_with_same_activator() {
+            //     4
+            //     │
+            // 1───2───3
+            //     │
+            //     5
+            // no_left_turn: 1->2->4
+            // no_right_turn: 1->2->5
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_node(n!(5, 0.1, -0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_way(w!(13, vec![2, 5], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_left_turn")
+                ));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 13, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_right_turn")
+                ));
+
+                assert_eq!(b.phantom_node_id_counter, 101);
+            }
+
+            assert_eq!(g.len(), 6);
+            assert!(g.get_node(1).is_some());
+            assert!(g.get_node(2).is_some());
+            assert!(g.get_node(3).is_some());
+            assert!(g.get_node(4).is_some());
+            assert!(g.get_node(5).is_some());
+            assert!(g.get_node(101).is_some());
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+            assert_edge!(g, 2, 5);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+            assert_edge!(g, 5, 2);
+
+            assert_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 2);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+            assert_no_edge!(g, 101, 5);
+        }
+
+        #[test]
+        fn test_add_relation_mandatory() {
+            //     4
+            //     │
+            // 1───2───3
+            // only_straight_on: 1->2->3
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 11, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_straight_on")
+                ));
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+
+            assert_no_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 2);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+        }
+
+        #[test]
+        fn test_add_relation_mandatory_not_applicable() {
+            //     4
+            //     ↓
+            // 1───2───3
+            // only_left_turn: 1->2->4
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(
+                    12,
+                    vec![4, 2],
+                    tags!("highway": "primary", "oneway": "yes")
+                ));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_left_turn")
+                ));
+
+                assert_eq!(b.phantom_node_id_counter, 100);
+            }
+
+            assert!(g.get_node(101).is_none());
+
+            assert_edge!(g, 1, 2);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_no_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+        }
+
+        #[test]
+        fn test_add_relation_two_mandatory() {
+            //     4
+            //     │
+            // 1───2───3
+            // only_straight_on: 1->2->3
+            // only_left_turn: 4->2->3
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 11, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_straight_on")
+                ));
+                b.add_relation(r!(
+                    21,
+                    vec![
+                        m!(FeatureType::Way, 12, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 11, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_left_turn")
+                ));
+
+                assert_eq!(b.phantom_node_id_counter, 102);
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+
+            assert_no_edge!(g, 4, 2);
+            assert_edge!(g, 4, 102);
+
+            assert_no_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 2);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+
+            assert_no_edge!(g, 102, 1);
+            assert_no_edge!(g, 102, 2);
+            assert_edge!(g, 102, 3);
+            assert_no_edge!(g, 102, 4);
+        }
+
+        #[test]
+        fn test_add_relation_two_conflicting_mandatory() {
+            //     4
+            //     │
+            // 1───2───3
+            // only_straight_on: 1->2->3 (applied)
+            // only_left_turn: 1->2->4 (ignored)
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 11, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_straight_on")
+                ));
+                b.add_relation(r!(
+                    21,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_left_turn")
+                ));
+
+                assert_eq!(b.phantom_node_id_counter, 101);
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+
+            assert_no_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 2);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+        }
+
+        #[test]
+        fn test_add_relation_mandatory_and_prohibitory_with_same_activator() {
+            //     4
+            //     │
+            // 1───2───3
+            // no_left_turn: 1->2->4
+            // only_straight_on: 1->2->3
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.1, 0.1));
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![2, 4], tags!("highway": "primary")));
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 12, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_left_turn")
+                ));
+                b.add_relation(r!(
+                    21,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 11, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_straight_on")
+                ));
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 4);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 4, 2);
+
+            assert_no_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 2);
+            assert_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 4);
+        }
+
+        #[test]
+        fn test_add_relation_contained_within_another() {
+            //     5   6
+            //     │   │
+            // 1───2───3───4
+            // no_left_turn: 1->2->3->6
+            // only_straight_on: 1->2->3
+
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 100;
+
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.3, 0.0));
+                b.add_node(n!(5, 0.1, 0.1));
+                b.add_node(n!(6, 0.2, 0.1));
+
+                b.add_way(w!(10, vec![1, 2], tags!("highway": "primary")));
+                b.add_way(w!(11, vec![2, 3], tags!("highway": "primary")));
+                b.add_way(w!(12, vec![3, 4], tags!("highway": "primary")));
+                b.add_way(w!(13, vec![2, 5], tags!("highway": "primary")));
+                b.add_way(w!(14, vec![3, 6], tags!("highway": "primary")));
+
+                b.add_relation(r!(
+                    20,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Way, 11, "via"),
+                        m!(FeatureType::Way, 14, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "no_left_turn")
+                ));
+                b.add_relation(r!(
+                    21,
+                    vec![
+                        m!(FeatureType::Way, 10, "from"),
+                        m!(FeatureType::Node, 2, "via"),
+                        m!(FeatureType::Way, 11, "to"),
+                    ],
+                    tags!("type": "restriction", "restriction": "only_straight_on")
+                ));
+
+                assert_eq!(b.phantom_node_id_counter, 102);
+            }
+
+            assert_no_edge!(g, 1, 2);
+            assert_edge!(g, 1, 101);
+
+            assert_edge!(g, 101, 102);
+            assert_no_edge!(g, 101, 1);
+            assert_no_edge!(g, 101, 3);
+            assert_no_edge!(g, 101, 5);
+
+            assert_edge!(g, 102, 2);
+            assert_edge!(g, 102, 4);
+            assert_no_edge!(g, 102, 6);
+
+            assert_edge!(g, 2, 1);
+            assert_edge!(g, 2, 3);
+            assert_edge!(g, 2, 5);
+
+            assert_edge!(g, 3, 2);
+            assert_edge!(g, 3, 4);
+            assert_edge!(g, 3, 6);
+
+            assert_edge!(g, 4, 3);
+            assert_edge!(g, 5, 2);
+            assert_edge!(g, 6, 3);
+        }
+
+        #[test]
+        fn test_cleanup() {
+            let mut g = Graph::default();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.add_node(n!(1, 0.0, 0.0));
+                b.add_node(n!(2, 0.1, 0.0));
+                b.add_node(n!(3, 0.2, 0.0));
+                b.add_node(n!(4, 0.2, 0.1));
+                b.add_node(n!(5, 0.2, 0.1));
+                b.add_way(w!(10, vec![1, 2, 3], tags!("highway": "primary")));
+
+                assert_eq!(b.g.len(), 5);
+                assert!(b.g.get_node(1).is_some());
+                assert!(b.g.get_node(2).is_some());
+                assert!(b.g.get_node(3).is_some());
+                assert!(b.g.get_node(4).is_some());
+                assert!(b.g.get_node(5).is_some());
+
+                assert_eq!(b.unused_nodes.len(), 2);
+                assert!(b.unused_nodes.contains(&4));
+                assert!(b.unused_nodes.contains(&5));
+
+                b.cleanup();
+            }
+
+            assert_eq!(g.len(), 3);
+            assert!(g.get_node(1).is_some());
+            assert!(g.get_node(2).is_some());
+            assert!(g.get_node(3).is_some());
+        }
+    }
+
+    mod graph_change {
+        use super::*;
+
+        #[inline]
+        fn fixture_graph() -> Graph {
+            //  (200) (200) (200)
+            // 1─────2─────3─────4
+            //       └─────5─────┘
+            //        (100) (100)
+
+            let mut g = Graph::default();
+            g.set_node(n!(1, 0.0, 0.0));
+            g.set_node(n!(2, 0.1, 0.0));
+            g.set_node(n!(3, 0.2, 0.0));
+            g.set_node(n!(4, 0.3, 0.0));
+            g.set_node(n!(5, 0.2, 0.1));
+            g.set_edge(1, e!(2, 200.0));
+            g.set_edge(2, e!(1, 200.0));
+            g.set_edge(2, e!(3, 200.0));
+            g.set_edge(2, e!(5, 100.0));
+            g.set_edge(3, e!(2, 200.0));
+            g.set_edge(3, e!(4, 200.0));
+            g.set_edge(4, e!(3, 200.0));
+            g.set_edge(4, e!(5, 100.0));
+            g.set_edge(5, e!(2, 100.0));
+            g.set_edge(5, e!(4, 100.0));
+            g
+        }
+
+        #[test]
+        fn test_restriction_as_cloned_nodes() {
+            let mut g = fixture_graph();
+            let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+            b.phantom_node_id_counter = 10;
+
+            let mut c = GraphChange::new(&b);
+            let cloned = c.restriction_as_cloned_nodes(&b.g, &[1, 2, 5]);
+
+            assert_eq!(cloned, Some(vec![1, 11, 5]));
+
+            assert_eq!(c.new_nodes.len(), 1);
+            assert_eq!(c.new_nodes.get(&11).cloned(), Some(2));
+
+            assert_eq!(c.edges_to_add.len(), 1);
+            assert_eq!(c.edges_to_add[&1].len(), 1);
+            assert_eq!(c.edges_to_add[&1][&11], 200.0);
+
+            assert_eq!(c.edges_to_remove.len(), 1);
+            assert!(c.edges_to_remove.contains(&(1, 2)));
+
+            assert_eq!(c.phantom_node_id_counter, 11);
+        }
+
+        #[test]
+        fn test_restriction_as_cloned_nodes_reuses_cloned_nodes() {
+            let mut g = fixture_graph();
+            g.set_node(n!(11, 2, 0.1, 0.0));
+            g.delete_edge(1, 2);
+            g.set_edge(1, e!(11, 200.0));
+            g.set_edge(11, e!(1, 200.0));
+            g.set_edge(11, e!(3, 200.0));
+            g.set_edge(11, e!(5, 100.0));
+
+            let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+            b.phantom_node_id_counter = 11;
+
+            let mut c = GraphChange::new(&b);
+            let cloned = c.restriction_as_cloned_nodes(&b.g, &[1, 2, 3]);
+
+            assert_eq!(cloned, Some(vec![1, 11, 3]));
+
+            assert_eq!(c.new_nodes.len(), 0);
+            assert_eq!(c.edges_to_add.len(), 0);
+            assert_eq!(c.edges_to_remove.len(), 0);
+            assert_eq!(c.phantom_node_id_counter, 11);
+        }
+
+        #[test]
+        fn test_restriction_as_cloned_nodes_reuses_last_nodes() {
+            let mut g = fixture_graph();
+            g.set_node(n!(11, 2, 0.1, 0.0));
+            g.set_node(n!(12, 3, 0.2, 0.0));
+            g.delete_edge(1, 2);
+            g.set_edge(1, e!(11, 200.0));
+            g.set_edge(11, e!(1, 200.0));
+            g.set_edge(11, e!(12, 200.0));
+            g.set_edge(11, e!(5, 100.0));
+            g.set_edge(12, e!(2, 200.0));
+            g.set_edge(12, e!(4, 200.0));
+
+            let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+            b.phantom_node_id_counter = 12;
+
+            let mut c = GraphChange::new(&b);
+            let cloned = c.restriction_as_cloned_nodes(&b.g, &[1, 2, 3]);
+
+            assert_eq!(cloned, Some(vec![1, 11, 12]));
+
+            assert_eq!(c.new_nodes.len(), 0);
+            assert_eq!(c.edges_to_add.len(), 0);
+            assert_eq!(c.edges_to_remove.len(), 0);
+            assert_eq!(c.phantom_node_id_counter, 12);
+        }
+
+        #[test]
+        fn test_restriction_as_cloned_nodes_missing_edge() {
+            let mut g = fixture_graph();
+            let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+            b.phantom_node_id_counter = 10;
+
+            let mut c = GraphChange::new(&b);
+            assert_eq!(c.restriction_as_cloned_nodes(&b.g, &[1, 2, 6]), None);
+        }
+
+        #[test]
+        fn test_apply() {
+            let mut g = fixture_graph();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 10;
+
+                let mut c = GraphChange::new(&b);
+                c.new_nodes.insert(11, 2);
+                c.edges_to_add.insert(1, HashMap::from([(11, 200.0)]));
+                c.edges_to_remove.insert((1, 2));
+                c.edges_to_remove.insert((11, 5));
+                c.phantom_node_id_counter = 11;
+                c.apply(&mut b);
+
+                assert_eq!(b.phantom_node_id_counter, 11);
+            }
+
+            assert_eq!(g.len(), 6);
+            assert_eq!(g.get_node(1), Some(n!(1, 0.0, 0.0)));
+            assert_eq!(g.get_node(2), Some(n!(2, 0.1, 0.0)));
+            assert_eq!(g.get_node(3), Some(n!(3, 0.2, 0.0)));
+            assert_eq!(g.get_node(4), Some(n!(4, 0.3, 0.0)));
+            assert_eq!(g.get_node(5), Some(n!(5, 0.2, 0.1)));
+            assert_eq!(g.get_node(11), Some(n!(11, 2, 0.1, 0.0)));
+
+            assert_eq!(g.get_edges(1), &[e!(11, 200.0)]);
+            assert_eq!(g.get_edges(2), &[e!(1, 200.0), e!(3, 200.0), e!(5, 100.0)]);
+            assert_eq!(g.get_edges(3), &[e!(2, 200.0), e!(4, 200.0)]);
+            assert_eq!(g.get_edges(4), &[e!(3, 200.0), e!(5, 100.0)]);
+            assert_eq!(g.get_edges(5), &[e!(2, 100.0), e!(4, 100.0)]);
+            assert_eq!(g.get_edges(11), &[e!(1, 200.0), e!(3, 200.0)]);
+        }
+
+        #[test]
+        fn test_ensure_only_edge() {
+            let mut g = fixture_graph();
+
+            {
+                let mut b = GraphBuilder::new(&mut g, &DEFAULT_OPTIONS);
+                b.phantom_node_id_counter = 10;
+
+                let mut c = GraphChange::new(&b);
+                let cloned = c.restriction_as_cloned_nodes(&b.g, &[1, 2, 3, 4]).unwrap();
+                assert_eq!(cloned, &[1, 11, 12, 4]);
+                c.ensure_only_edge(&b.g, 11, 12);
+                c.ensure_only_edge(&b.g, 12, 4);
+                c.apply(&mut b);
+            }
+
+            assert_eq!(g.len(), 7);
+            assert_eq!(g.get_node(1), Some(n!(1, 0.0, 0.0)));
+            assert_eq!(g.get_node(2), Some(n!(2, 0.1, 0.0)));
+            assert_eq!(g.get_node(3), Some(n!(3, 0.2, 0.0)));
+            assert_eq!(g.get_node(4), Some(n!(4, 0.3, 0.0)));
+            assert_eq!(g.get_node(5), Some(n!(5, 0.2, 0.1)));
+            assert_eq!(g.get_node(11), Some(n!(11, 2, 0.1, 0.0)));
+            assert_eq!(g.get_node(12), Some(n!(12, 3, 0.2, 0.0)));
+
+            assert_eq!(g.get_edges(1), &[e!(11, 200.0)]);
+            assert_eq!(g.get_edges(2), &[e!(1, 200.0), e!(3, 200.0), e!(5, 100.0)]);
+            assert_eq!(g.get_edges(3), &[e!(2, 200.0), e!(4, 200.0)]);
+            assert_eq!(g.get_edges(4), &[e!(3, 200.0), e!(5, 100.0)]);
+            assert_eq!(g.get_edges(5), &[e!(2, 100.0), e!(4, 100.0)]);
+            assert_eq!(g.get_edges(11), &[e!(12, 200.0)]);
+            assert_eq!(g.get_edges(12), &[e!(4, 200.0)]);
         }
     }
 }

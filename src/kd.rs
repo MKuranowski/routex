@@ -1,7 +1,7 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
-use crate::{earth_distance, Node};
+use crate::{earth_distance, Graph, Node};
 
 /// KDTree implements the [k-d tree data structure](https://en.wikipedia.org/wiki/K-d_tree),
 /// which can be used to speed up nearest-neighbor search for large datasets. Practice shows
@@ -93,6 +93,12 @@ impl KDTree {
     pub fn build(nodes: &mut [Node]) -> Option<Self> {
         debug_assert!(nodes.iter().all(|n| n.id == n.osm_id));
         Self::build_impl(nodes, false)
+    }
+
+    /// Builds a k-d tree from a Graph, collecting all canonical (`id == osm_id`) nodes into a [Vec] first.
+    pub fn build_from_graph(graph: &Graph) -> Option<Self> {
+        let mut nodes: Vec<_> = graph.iter().filter(|n| n.id == n.osm_id).cloned().collect();
+        Self::build(&mut nodes)
     }
 
     fn build_impl(nodes: &mut [Node], lon_divides: bool) -> Option<Self> {

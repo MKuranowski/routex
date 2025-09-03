@@ -6,4 +6,13 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
+clap = { version = "4.5.47", features = ["derive"], optional = true }
 quick-xml = "0.37.2"
+
+[features]
+cli = ["dep:clap"]
+
+[[bin]]
+name = "routex"
+src = "src/main.rs"
+required-features = ["cli"]

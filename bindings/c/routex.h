@@ -1,8 +1,13 @@
-#pragma once
+#ifndef ROUTEX_H
+#define ROUTEX_H
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct RoutexNode {
     int64_t id;
@@ -23,9 +28,11 @@ RoutexGraph* routex_graph_new(void);
 void routex_graph_delete(RoutexGraph*);
 
 size_t routex_graph_get_nodes(RoutexGraph const*, RoutexGraphIterator**);
-RoutexNode routex_graph_next_node(RoutexGraphIterator*);
+RoutexNode routex_graph_iterator_next(RoutexGraphIterator*);
+void routex_graph_iterator_delete(RoutexGraphIterator*);
+
 RoutexNode routex_graph_get_node(RoutexGraph const*, int64_t id);
-bool routex_graph_set_node(RoutexGraph*, RoutexNode, bool clear_edges);
+bool routex_graph_set_node(RoutexGraph*, RoutexNode);
 bool routex_graph_delete_node(RoutexGraph*, int64_t id);
 RoutexNode routex_graph_find_nearest_node(RoutexGraph const*, float lat, float lon);
 
@@ -58,7 +65,7 @@ typedef enum RoutexOsmFormat {
     RoutexOsmFormatXml = 1,
     RoutexOsmFormatXmlGz = 2,
     RoutexOsmFormatXmlBz2 = 3,
-    RoutexOsmFormatXmlPbf = 4,
+    RoutexOsmFormatPbf = 4,
 } RoutexOsmFormat;
 
 typedef struct RoutexOsmOptions {
@@ -81,6 +88,7 @@ typedef struct RoutexRouteResult {
         struct {
             int64_t* nodes;
             uint32_t len;
+            uint32_t capacity;
         } as_ok;
 
         struct {
@@ -102,3 +110,9 @@ void routex_kd_tree_delete(RoutexKDTree*);
 int64_t routex_kd_tree_find_nearest_node(RoutexKDTree const*, float lat, float lon);
 
 float routex_earth_distance(float lat1, float lon1, float lat2, float lon2);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // ROUTEX_H

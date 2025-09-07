@@ -12,7 +12,12 @@ quick-xml = "0.37.2"
 [features]
 cli = ["dep:clap"]
 
+[lib]
+name = "routex"
+path = "src/lib.rs"
+crate-type = ["lib", "staticlib", "cdylib"]
+
 [[bin]]
 name = "routex"
-src = "src/main.rs"
+path = "src/main.rs"
 required-features = ["cli"]

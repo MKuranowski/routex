@@ -58,16 +58,22 @@ impl Graph {
     /// Updating a [Node] position might result in violation of the
     /// [Edge] cost invariant (and thus break route finding) and
     /// is therefore disallowed.
-    pub fn set_node(&mut self, node: Node) {
+    ///
+    /// Returns `true` if an existing node was updated/overwritten,
+    /// `false` if a new node was created.
+    pub fn set_node(&mut self, node: Node) -> bool {
         assert_ne!(node.id, 0);
 
         match self.0.entry(node.id) {
             Entry::Vacant(e) => {
                 e.insert((node, Vec::default()));
+                false
             }
+
             Entry::Occupied(mut e) => {
                 debug_assert_eq!(e.get().0.id, node.id);
                 e.get_mut().0 = node;
+                true
             }
         }
     }
@@ -78,8 +84,10 @@ impl Graph {
     /// (as this would require a walk over all nodes in the graph).
     /// Thus, deleting a node and then re-using its id might result in violation
     /// of the [Edge] cost invariant (and break route finding) is disallowed.
-    pub fn delete_node(&mut self, id: i64) {
-        self.0.remove(&id);
+    ///
+    /// Returns `true` if a node was deleted, `false` if no such node existed.
+    pub fn delete_node(&mut self, id: i64) -> bool {
+        self.0.remove(&id).is_some()
     }
 
     /// Finds the closest canonical (`id == osm_id`) [Node] to the given position.
@@ -127,21 +135,34 @@ impl Graph {
     }
 
     /// Creates or updates an [Edge] from a node with a given id.
-    pub fn set_edge(&mut self, from_id: i64, edge: Edge) {
+    ///
+    /// Returns `true` if an existing edge was updated, `false` if a new edge was created.
+    ///
+    /// If `from_id` or `edge.to` doesn't exist in the graph, does nothing and returns `false`.
+    pub fn set_edge(&mut self, from_id: i64, edge: Edge) -> bool {
         assert_ne!(from_id, 0);
         assert_ne!(edge.to, 0);
+
+        if !self.0.contains_key(&edge.to) {
+            return false;
+        }
 
         if let Some((_, edges)) = self.0.get_mut(&from_id) {
             if let Some(candidate) = edges.iter_mut().find(|e| e.to == edge.to) {
                 *candidate = edge;
+                return true;
             } else {
                 edges.push(edge);
             }
         }
+
+        false
     }
 
-    /// Removes an edge from one node to another.
-    pub fn delete_edge(&mut self, from_id: i64, to_id: i64) {
+    /// Removes an edge from one node to another. If no such edge exists, does nothing.
+    ///
+    /// Returns `true` if an edge was removed, `false` otherwise.
+    pub fn delete_edge(&mut self, from_id: i64, to_id: i64) -> bool {
         if let Some((_, edges)) = self.0.get_mut(&from_id) {
             if let Some(idx) =
                 edges.iter().enumerate().find_map(
@@ -155,8 +176,11 @@ impl Graph {
                 )
             {
                 edges.swap_remove(idx);
+                return true;
             }
         }
+
+        false
     }
 
     /// Replaces all edges from `dst` by cloning all edges outgoing from `src`.

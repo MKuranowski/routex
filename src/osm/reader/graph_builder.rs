@@ -58,9 +58,9 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn cleanup(&mut self) {
-        self.unused_nodes
-            .iter()
-            .for_each(|&id| self.g.delete_node(id));
+        self.unused_nodes.iter().for_each(|&id| {
+            self.g.delete_node(id);
+        });
     }
 
     fn add_feature(&mut self, f: model::Feature) {

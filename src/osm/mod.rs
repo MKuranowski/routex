@@ -154,4 +154,22 @@ mod tests {
 
         check_simple_graph(&g);
     }
+
+    #[test]
+    fn test_build_graph_bz2_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.bz2");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::XmlBz2,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
 }

@@ -6,6 +6,7 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
+bzip2 = "0.6.0"
 clap = { version = "4.5.47", features = ["derive"], optional = true }
 flate2 = { version = "1.1.2", features = ["zlib-rs"] }
 quick-xml = "0.37.2"

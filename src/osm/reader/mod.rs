@@ -86,7 +86,13 @@ pub fn add_features_from_io<'a, R: io::Read>(
             Ok(())
         }
 
-        FileFormat::XmlBz2 => todo!(".osm.bz2 files are not yet supported"),
+        FileFormat::XmlBz2 => {
+            let d = bzip2::read::MultiBzDecoder::new(reader);
+            let b = io::BufReader::new(d);
+            let r = xml::Reader::from_io(b);
+            GraphBuilder::new(g, options).add_features(r)?;
+            Ok(())
+        }
 
         FileFormat::Pbf => todo!(".osm.pbf files are not yet supported"),
     }

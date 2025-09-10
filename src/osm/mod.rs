@@ -40,8 +40,7 @@ mod tests {
         };
     }
 
-    #[test]
-    fn test_build_graph_round_trip() {
+    fn check_simple_graph(g: &Graph) {
         //   9
         //   │         8
         //  ┌63┐       │
@@ -52,19 +51,6 @@ mod tests {
         //   2─────────3
         //   │
         //   1
-
-        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm");
-
-        let g = {
-            let mut g = Graph::default();
-            let options = Options {
-                profile: &CAR_PROFILE,
-                file_format: FileFormat::Xml,
-                bbox: [0.0; 4],
-            };
-            add_features_from_buffer(&mut g, &options, DATA).unwrap();
-            g
-        };
 
         // Check the loaded amount of nodes
         assert_eq!(g.len(), 14);
@@ -131,5 +117,41 @@ mod tests {
             assert_eq!(edges.len(), 1);
             assert_eq!(edges[0].to, -3);
         }
+    }
+
+    #[test]
+    fn test_build_graph_xml_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::Xml,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
+
+    #[test]
+    fn test_build_graph_gz_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.gz");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::XmlGz,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
     }
 }

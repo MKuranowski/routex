@@ -58,42 +58,48 @@ trait FeatureReader {
     fn next(&mut self) -> Result<Option<model::Feature>, Self::Error>;
 }
 
+/// Parse OSM features from a reader into a [Graph] as per the provided [Options].
+///
+/// The provided stream will be automatically wrapped in a buffered reader when needed.
+pub fn add_features_from_io<'a, R: io::Read>(
+    g: &'a mut Graph,
+    options: &'a Options<'a>,
+    reader: R,
+) -> Result<(), Box<dyn Error>> {
+    match options.file_format {
+        FileFormat::Unknown => {
+            todo!("file format auto-detection is not yet supported - provide the file format explicitly")
+        }
+
+        FileFormat::Xml => {
+            let b = io::BufReader::new(reader);
+            let r = xml::Reader::from_io(b);
+            GraphBuilder::new(g, options).add_features(r)?;
+            Ok(())
+        }
+
+        FileFormat::XmlGz => {
+            let d = flate2::read::MultiGzDecoder::new(reader);
+            let b = io::BufReader::new(d);
+            let r = xml::Reader::from_io(b);
+            GraphBuilder::new(g, options).add_features(r)?;
+            Ok(())
+        }
+
+        FileFormat::XmlBz2 => todo!(".osm.bz2 files are not yet supported"),
+
+        FileFormat::Pbf => todo!(".osm.pbf files are not yet supported"),
+    }
+}
+
 /// Parse OSM features from a file at the provided path into a [Graph] as per the provided [Options].
 pub fn add_features_from_file<'a, P: AsRef<Path>>(
     g: &'a mut Graph,
     options: &'a Options<'a>,
     path: P,
 ) -> Result<(), Box<dyn Error>> {
-    assert_eq!(
-        options.file_format,
-        FileFormat::Xml,
-        "unsupported file format {:?} (only xml is currently supported)",
-        options.file_format
-    );
-
     let f = File::open(path)?;
-    let b = io::BufReader::new(f);
-    let r = xml::Reader::from_io(b);
-    GraphBuilder::new(g, options).add_features(r)?;
-    Ok(())
-}
-
-/// Parse OSM features from a reader into a [Graph] as per the provided [Options].
-pub fn add_features_from_io<'a, R: io::BufRead>(
-    g: &'a mut Graph,
-    options: &'a Options<'a>,
-    reader: R,
-) -> Result<(), Box<dyn Error>> {
-    assert_eq!(
-        options.file_format,
-        FileFormat::Xml,
-        "unsupported file format {:?} (only xml is currently supported)",
-        options.file_format
-    );
-
-    let r = xml::Reader::from_io(reader);
-    GraphBuilder::new(g, options).add_features(r)?;
-    Ok(())
+    add_features_from_io(g, options, f)
 }
 
 /// Parse OSM features from a static buffer into a [Graph] as per the provided [Options].
@@ -102,14 +108,14 @@ pub fn add_features_from_buffer<'a>(
     options: &'a Options<'a>,
     data: &[u8],
 ) -> Result<(), Box<dyn Error>> {
-    assert_eq!(
-        options.file_format,
-        FileFormat::Xml,
-        "unsupported file format {:?} (only xml is currently supported)",
-        options.file_format
-    );
-
-    let r = xml::Reader::from_buffer(data);
-    GraphBuilder::new(g, options).add_features(r)?;
-    Ok(())
+    if options.file_format == FileFormat::Xml {
+        // Fast path is available for in-memory XML data
+        let r = xml::Reader::from_buffer(data);
+        GraphBuilder::new(g, options).add_features(r)?;
+        Ok(())
+    } else {
+        // Wrap the buffer in a cursor and use the IO path
+        let cursor = io::Cursor::new(data);
+        add_features_from_io(g, options, cursor)
+    }
 }

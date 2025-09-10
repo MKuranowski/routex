@@ -12,7 +12,7 @@ with C and Python bindings available.
 - [x] A*
 - [x] Basic OSM data loading
 - [x] OSM turn restriction
-- [ ] GZ support
+- [x] GZ support
 - [ ] BZ2 support
 - [ ] OSM PBF support
 - [ ] FileFormat auto detection

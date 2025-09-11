@@ -13,6 +13,7 @@ use crate::Graph;
 
 mod graph_builder;
 mod model;
+mod pbf;
 mod xml;
 
 /// Format of the input OSM file
@@ -51,11 +52,17 @@ pub struct Options<'a> {
     pub bbox: [f32; 4],
 }
 
-/// Internal trait for objects which can stream [osm features](model::Feature)
-/// from an underlying source.
-trait FeatureReader {
-    type Error;
-    fn next(&mut self) -> Result<Option<model::Feature>, Self::Error>;
+/// Trait alias for objects which can stream [osm features](model::Feature)
+/// from an underlying source - alias for `IntoIterator<Item=Result<model::Feature, Error>>`.
+trait FeatureReader: IntoIterator<Item = Result<model::Feature, Self::Error>> {
+    type Error: std::error::Error;
+}
+
+impl<E: std::error::Error, I> FeatureReader for I
+where
+    I: IntoIterator<Item = Result<model::Feature, E>>,
+{
+    type Error = E;
 }
 
 /// Parse OSM features from a reader into a [Graph] as per the provided [Options].
@@ -94,7 +101,11 @@ pub fn add_features_from_io<'a, R: io::Read>(
             Ok(())
         }
 
-        FileFormat::Pbf => todo!(".osm.pbf files are not yet supported"),
+        FileFormat::Pbf => {
+            let features = pbf::features_from_file(io::BufReader::new(reader));
+            GraphBuilder::new(g, options).add_features(features)?;
+            Ok(())
+        }
     }
 }
 

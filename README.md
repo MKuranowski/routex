@@ -14,10 +14,11 @@ with C and Python bindings available.
 - [x] OSM turn restriction
 - [x] GZ support
 - [x] BZ2 support
-- [ ] OSM PBF support
+- [x] OSM PBF support
 - [ ] FileFormat auto detection
 - [ ] Logging facilities
 - [ ] Silence warnings for filtered-out features
+- [ ] Special handling for `foot` profiles
 
 
 ## License

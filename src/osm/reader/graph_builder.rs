@@ -3,12 +3,12 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{earth_distance, osm::profile::TurnRestriction, Edge, Graph, Node};
+use crate::osm::profile::TurnRestriction;
+use crate::osm::reader::FeatureReader;
+use crate::{earth_distance, Edge, Graph, Node};
 
-use super::{
-    model::{self, FeatureType},
-    FeatureReader, Options,
-};
+use super::model::FeatureType;
+use super::{model, Options};
 
 const MAX_NODE_ID: i64 = 0x0008_0000_0000_0000;
 
@@ -46,12 +46,9 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// Add all features from the provided [FeatureReader].
-    pub(super) fn add_features<F: FeatureReader>(
-        &mut self,
-        mut features: F,
-    ) -> Result<(), F::Error> {
-        while let Some(f) = features.next()? {
-            self.add_feature(f);
+    pub(super) fn add_features<F: FeatureReader>(&mut self, features: F) -> Result<(), F::Error> {
+        for f in features {
+            self.add_feature(f?);
         }
         self.cleanup();
         Ok(())

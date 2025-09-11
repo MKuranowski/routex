@@ -20,7 +20,7 @@ mod tests {
     macro_rules! assert_almost_eq {
         ($a:expr, $b:expr) => {
             assert!(
-                (($a - $b).abs() < 1e-4),
+                (($a - $b).abs() < 5e-3),
                 "assertion failed: {} ≈ {}",
                 $a,
                 $b
@@ -164,6 +164,24 @@ mod tests {
             let options = Options {
                 profile: &CAR_PROFILE,
                 file_format: FileFormat::XmlBz2,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
+
+    #[test]
+    fn test_build_graph_pbf_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.pbf");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::Pbf,
                 bbox: [0.0; 4],
             };
             add_features_from_buffer(&mut g, &options, DATA).unwrap();

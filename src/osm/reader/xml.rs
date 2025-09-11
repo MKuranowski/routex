@@ -64,18 +64,23 @@ impl<P: Parser> Reader<P> {
     }
 }
 
-impl<P: Parser> super::FeatureReader for Reader<P> {
-    type Error = quick_xml::Error;
+impl<P: Parser> Iterator for Reader<P> {
+    type Item = Result<model::Feature, quick_xml::Error>;
 
-    fn next(&mut self) -> quick_xml::Result<Option<model::Feature>> {
+    fn next(&mut self) -> Option<Self::Item> {
         let mut f: Option<model::Feature> = None;
 
         while !self.eof {
-            match self.parser.read_event()? {
+            let event = match self.parser.read_event() {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+
+            match event {
                 quick_xml::events::Event::Empty(start) => {
                     match start.local_name().as_ref() {
                         b"node" => match parse_node(start) {
-                            Some(n) => return Ok(Some(model::Feature::Node(n))),
+                            Some(n) => return Some(Ok(model::Feature::Node(n))),
                             None => {}
                         },
                         // "way" or "relation" can't be self-closing
@@ -112,12 +117,14 @@ impl<P: Parser> super::FeatureReader for Reader<P> {
                     _ => {}
                 },
 
-                quick_xml::events::Event::End(end) => {
-                    match (end.local_name().as_ref(), f.is_some()) {
-                        (b"node", true) | (b"way", true) | (b"relation", true) => return Ok(f),
-                        _ => {}
+                quick_xml::events::Event::End(end) => match end.local_name().as_ref() {
+                    b"node" | b"way" | b"relation" => {
+                        if let Some(f) = f.take() {
+                            return Some(Ok(f));
+                        }
                     }
-                }
+                    _ => {}
+                },
 
                 quick_xml::events::Event::Eof => {
                     self.eof = true;
@@ -127,7 +134,7 @@ impl<P: Parser> super::FeatureReader for Reader<P> {
             }
         }
 
-        return Ok(f);
+        return f.map(Ok);
     }
 }
 
@@ -547,26 +554,27 @@ mod tests {
         ];
     }
 
-    fn collect_all<R: FeatureReader>(
-        mut r: R,
-    ) -> Result<(Vec<Node>, Vec<Way>, Vec<Relation>), R::Error> {
+    fn collect_all<F: FeatureReader>(
+        features: F,
+    ) -> Result<(Vec<Node>, Vec<Way>, Vec<Relation>), F::Error> {
         let mut nodes = Vec::default();
         let mut ways = Vec::default();
         let mut relations = Vec::default();
 
-        while let Some(f) = r.next()? {
+        for f in features {
             match f {
-                Feature::Node(n) => nodes.push(n),
-                Feature::Way(w) => ways.push(w),
-                Feature::Relation(r) => relations.push(r),
+                Ok(Feature::Node(n)) => nodes.push(n),
+                Ok(Feature::Way(w)) => ways.push(w),
+                Ok(Feature::Relation(r)) => relations.push(r),
+                Err(e) => return Err(e),
             }
         }
 
         Ok((nodes, ways, relations))
     }
 
-    fn check_against_expected<R: FeatureReader>(r: R) -> Result<(), R::Error> {
-        let (nodes, ways, relations) = collect_all(r)?;
+    fn check_against_expected<F: FeatureReader>(features: F) -> Result<(), F::Error> {
+        let (nodes, ways, relations) = collect_all(features)?;
         assert_eq!(nodes, get_expected_nodes());
         assert_eq!(ways, get_expected_ways());
         assert_eq!(relations, get_expected_relations());

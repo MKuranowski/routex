@@ -15,7 +15,7 @@ with C and Python bindings available.
 - [x] GZ support
 - [x] BZ2 support
 - [x] OSM PBF support
-- [ ] FileFormat auto detection
+- [x] FileFormat auto detection
 - [ ] Logging facilities
 - [ ] Silence warnings for filtered-out features
 - [ ] Special handling for `foot` profiles

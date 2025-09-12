@@ -37,6 +37,25 @@ pub enum FileFormat {
     Pbf,
 }
 
+impl FileFormat {
+    pub fn detect(b: &[u8]) -> FileFormat {
+        if b.starts_with(b"<?xml") || b.starts_with(b"<osm") {
+            FileFormat::Xml
+        } else if b.starts_with(b"\x1F\x8B") {
+            FileFormat::XmlGz // Gzip magic bytes
+        } else if b.starts_with(b"BZh") {
+            FileFormat::XmlBz2 // Bzip2 magic bytes
+        } else if b.len() >= 8 && &b[4..8] == b"\x0A\x09OS" {
+            // OSM PBF always starts with the first 4 bytes encoding the BlobHeader length - we ignore this,
+            // rather, we check the first field of the first BlobHeader, which should be:
+            // field 1, type string, "OSMHeader" (length 9). - ? ? ? ? 0x0A 0x09 O S M H e a d e r
+            FileFormat::Pbf
+        } else {
+            FileFormat::Unknown
+        }
+    }
+}
+
 /// Additional controls for interpreting OSM data as a routing [Graph].
 #[derive(Debug)]
 pub struct Options<'a> {
@@ -68,15 +87,23 @@ where
 /// Parse OSM features from a reader into a [Graph] as per the provided [Options].
 ///
 /// The provided stream will be automatically wrapped in a buffered reader when needed.
-pub fn add_features_from_io<'a, R: io::Read>(
+pub fn add_features_from_io<'a, R: io::BufRead>(
     g: &'a mut Graph,
     options: &'a Options<'a>,
-    reader: R,
+    mut reader: R,
 ) -> Result<(), Box<dyn Error>> {
-    match options.file_format {
-        FileFormat::Unknown => {
-            todo!("file format auto-detection is not yet supported - provide the file format explicitly")
-        }
+    // Attempt to detect the file format if not specified
+    let detected_format = if options.file_format == FileFormat::Unknown {
+        FileFormat::detect(reader.fill_buf()?)
+    } else {
+        options.file_format
+    };
+
+    match detected_format {
+        FileFormat::Unknown => Err(Box::new(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "unknown OSM file format - data doesn't look like .osm, .osm.gz, .osm.bz2 or .osm.pbf",
+        ))),
 
         FileFormat::Xml => {
             let b = io::BufReader::new(reader);
@@ -86,7 +113,7 @@ pub fn add_features_from_io<'a, R: io::Read>(
         }
 
         FileFormat::XmlGz => {
-            let d = flate2::read::MultiGzDecoder::new(reader);
+            let d = flate2::bufread::MultiGzDecoder::new(reader);
             let b = io::BufReader::new(d);
             let r = xml::Reader::from_io(b);
             GraphBuilder::new(g, options).add_features(r)?;
@@ -94,7 +121,7 @@ pub fn add_features_from_io<'a, R: io::Read>(
         }
 
         FileFormat::XmlBz2 => {
-            let d = bzip2::read::MultiBzDecoder::new(reader);
+            let d = bzip2::bufread::MultiBzDecoder::new(reader);
             let b = io::BufReader::new(d);
             let r = xml::Reader::from_io(b);
             GraphBuilder::new(g, options).add_features(r)?;
@@ -102,7 +129,7 @@ pub fn add_features_from_io<'a, R: io::Read>(
         }
 
         FileFormat::Pbf => {
-            let features = pbf::features_from_file(io::BufReader::new(reader));
+            let features = pbf::features_from_file(reader);
             GraphBuilder::new(g, options).add_features(features)?;
             Ok(())
         }
@@ -116,7 +143,8 @@ pub fn add_features_from_file<'a, P: AsRef<Path>>(
     path: P,
 ) -> Result<(), Box<dyn Error>> {
     let f = File::open(path)?;
-    add_features_from_io(g, options, f)
+    let b = io::BufReader::new(f);
+    add_features_from_io(g, options, b)
 }
 
 /// Parse OSM features from a static buffer into a [Graph] as per the provided [Options].
@@ -134,5 +162,30 @@ pub fn add_features_from_buffer<'a>(
         // Wrap the buffer in a cursor and use the IO path
         let cursor = io::Cursor::new(data);
         add_features_from_io(g, options, cursor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_file_format_detect() {
+        assert_eq!(FileFormat::detect(b""), FileFormat::Unknown);
+        assert_eq!(FileFormat::detect(b"lorem ipsum dolo"), FileFormat::Unknown);
+        assert_eq!(FileFormat::detect(b"<?xml version='1"), FileFormat::Xml);
+        assert_eq!(FileFormat::detect(b"<osm version='0."), FileFormat::Xml);
+        assert_eq!(
+            FileFormat::detect(b"\x1F\x8B\x08\x08\x84s\xCE^"),
+            FileFormat::XmlGz,
+        );
+        assert_eq!(
+            FileFormat::detect(b"BZh91AY&SY\x12\x10&X\x00\x04"),
+            FileFormat::XmlBz2,
+        );
+        assert_eq!(
+            FileFormat::detect(b"\x00\x00\x00\x0D\x0A\x09OSMHeader\x18"),
+            FileFormat::Pbf,
+        );
     }
 }

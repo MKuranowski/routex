@@ -138,6 +138,24 @@ mod tests {
     }
 
     #[test]
+    fn test_build_graph_xml_auto_detect_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::Unknown,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
+
+    #[test]
     fn test_build_graph_gz_round_trip() {
         const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.gz");
 
@@ -146,6 +164,24 @@ mod tests {
             let options = Options {
                 profile: &CAR_PROFILE,
                 file_format: FileFormat::XmlGz,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
+
+    #[test]
+    fn test_build_graph_gz_auto_detect_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.gz");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::Unknown,
                 bbox: [0.0; 4],
             };
             add_features_from_buffer(&mut g, &options, DATA).unwrap();
@@ -174,6 +210,24 @@ mod tests {
     }
 
     #[test]
+    fn test_build_graph_bz2_auto_detect_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.bz2");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::Unknown,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
+
+    #[test]
     fn test_build_graph_pbf_round_trip() {
         const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.pbf");
 
@@ -182,6 +236,24 @@ mod tests {
             let options = Options {
                 profile: &CAR_PROFILE,
                 file_format: FileFormat::Pbf,
+                bbox: [0.0; 4],
+            };
+            add_features_from_buffer(&mut g, &options, DATA).unwrap();
+            g
+        };
+
+        check_simple_graph(&g);
+    }
+
+    #[test]
+    fn test_build_graph_pbf_auto_detect_round_trip() {
+        const DATA: &[u8] = include_bytes!("reader/test_fixtures/simple.osm.pbf");
+
+        let g = {
+            let mut g = Graph::default();
+            let options = Options {
+                profile: &CAR_PROFILE,
+                file_format: FileFormat::Unknown,
                 bbox: [0.0; 4],
             };
             add_features_from_buffer(&mut g, &options, DATA).unwrap();

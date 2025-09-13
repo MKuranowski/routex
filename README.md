@@ -19,6 +19,10 @@ with C and Python bindings available.
 - [x] Logging facilities
 - [x] Silence warnings for filtered-out features
 - [x] Special handling for `foot` profiles
+- [ ] Meson build system & C bindings
+- [ ] C++ bindings (routexpp)
+- [ ] Cross-compilation
+- [ ] Python bindings
 
 
 ## License

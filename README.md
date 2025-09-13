@@ -18,7 +18,7 @@ with C and Python bindings available.
 - [x] FileFormat auto detection
 - [x] Logging facilities
 - [x] Silence warnings for filtered-out features
-- [ ] Special handling for `foot` profiles
+- [x] Special handling for `foot` profiles
 
 
 ## License

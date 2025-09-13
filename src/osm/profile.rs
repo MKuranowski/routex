@@ -9,8 +9,16 @@ pub struct Profile<'a> {
     /// Human readable name of the routing profile,
     /// customary the most specific [access tag](https://wiki.openstreetmap.org/wiki/Key:access).
     ///
-    /// Except when set to "foot" (which changes one-way handling),
-    /// this value is not used for actual OSM data interpretation.
+    /// This values us not used for actual OSM data interpretation,
+    /// except when set to "foot", which adds the following logic:
+    /// - `oneway` tags are ignored - only `oneway:foot` tags are considered, except on:
+    ///    - `highway=footway`,
+    ///    - `highway=path`,
+    ///    - `highway=steps`,
+    ///    - `highway=platform`
+    ///    - `public_transport=platform`,
+    ///    - `railway=platform`;
+    /// - only `restriction:foot` turn restrictions are considered.
     pub name: &'a str,
 
     /// Array of tags which OSM ways can be used for routing.
@@ -130,28 +138,24 @@ impl<'a> Profile<'a> {
     /// Some ways (highway=motorway, highway=motorway_link, junction=roundabout and
     /// junction=circular) default to being one-way, except if overridden by specific tags.
     pub fn way_direction(&self, tags: &HashMap<String, String>) -> (bool, bool) {
-        // FIXME: This logic is not correct for "foot" profiles.
-        // In general, only "oneway:foot" can force a way to be one-way;
-        // Except for highway=footway, path, steps and platform, where "oneway"
-        // also implicitly applies to on-foot traffic.
-
-        // Start by assuming way is two-way
         let mut forward = true;
         let mut backward = true;
 
-        // Default one-way ways
-        match tags.get("highway").map(|s| s.as_str()).unwrap_or("") {
-            "motorway" | "motorway_link" => {
-                backward = false;
+        // Default one-way ways (foot profile exception - does not apply)
+        if !self.apply_foot_exceptions() {
+            match tags.get("highway").map(|s| s.as_str()).unwrap_or("") {
+                "motorway" | "motorway_link" => {
+                    backward = false;
+                }
+                _ => {}
             }
-            _ => {}
-        }
 
-        match tags.get("junction").map(|s| s.as_str()).unwrap_or("") {
-            "roundabout" | "circular" => {
-                backward = false;
+            match tags.get("junction").map(|s| s.as_str()).unwrap_or("") {
+                "roundabout" | "circular" => {
+                    backward = false;
+                }
+                _ => {}
             }
-            _ => {}
         }
 
         // Check the oneway tag
@@ -180,14 +184,53 @@ impl<'a> Profile<'a> {
     /// Returns the value of the most specific "oneway:MODE" tag (based on [Profile::access]),
     /// falling back to simply "oneway", and returning an empty string if no relevant tag was found.
     fn get_active_oneway_value<'t>(&self, tags: &'t HashMap<String, String>) -> &'t str {
-        self.access
-            .iter()
-            .rev()
-            .filter(|&&mode| mode != "access")
-            .find_map(|&mode| tags.get(&format!("oneway:{}", mode)))
-            .or_else(|| tags.get("oneway"))
-            .map(|oneway_tag| oneway_tag.as_str())
-            .unwrap_or("")
+        if self.apply_foot_exceptions() {
+            // foot profile exception - only consider "oneway:foot" and "oneway" in select cases
+            if let Some(oneway_foot) = tags.get("oneway:foot") {
+                return oneway_foot.as_str();
+            }
+
+            if Self::allow_generic_oneway_to_apply_on_foot(tags) {
+                if let Some(oneway) = tags.get("oneway") {
+                    return oneway.as_str();
+                }
+            }
+
+            return "";
+        } else {
+            self.access
+                .iter()
+                .rev()
+                .filter(|&&mode| mode != "access")
+                .find_map(|&mode| tags.get(&format!("oneway:{}", mode)))
+                .or_else(|| tags.get("oneway"))
+                .map(|oneway_tag| oneway_tag.as_str())
+                .unwrap_or("")
+        }
+    }
+
+    fn allow_generic_oneway_to_apply_on_foot(tags: &HashMap<String, String>) -> bool {
+        // By default, on foot, only "oneway:foot" is considered. However, on the following
+        // ways the generic "oneway" tag also applies.
+
+        // highway=footway, highway=path, highway=steps, highway=platform
+        match tags.get("highway").map(|v| v.as_str()) {
+            Some("footway") | Some("path") | Some("steps") | Some("platform") => return true,
+            _ => {}
+        }
+
+        // public_transport=platform
+        if tags.get("public_transport").map(|v| v.as_str()) == Some("platform") {
+            return true;
+        }
+
+        // railway=platform
+        if tags.get("railway").map(|v| v.as_str()) == Some("platform") {
+            return true;
+        }
+
+        // Default to false
+        return false;
     }
 
     /// Figures out what kind of [TurnRestriction] a relation with given tags represents.
@@ -234,16 +277,25 @@ impl<'a> Profile<'a> {
     /// falling back to simply "restriction", and returning an empty string if no relevant tag
     /// was found.
     fn get_active_restriction_tag<'t>(&self, tags: &'t HashMap<String, String>) -> &'t str {
-        // FIXME: This logic is not correct for "foot" profiles.
-        // In general, only "restriction:foot" applies.
-        self.access
-            .iter()
-            .rev()
-            .filter(|&&mode| mode != "access")
-            .find_map(|&mode| tags.get(&format!("restriction:{}", mode)))
-            .or_else(|| tags.get("restriction"))
-            .map(|v| v.as_str())
-            .unwrap_or("")
+        if self.apply_foot_exceptions() {
+            // foot profile exception - only consider "restriction:foot"
+            tags.get("restriction:foot")
+                .map(|v| v.as_str())
+                .unwrap_or("")
+        } else {
+            self.access
+                .iter()
+                .rev()
+                .filter(|&&mode| mode != "access")
+                .find_map(|&mode| tags.get(&format!("restriction:{}", mode)))
+                .or_else(|| tags.get("restriction"))
+                .map(|v| v.as_str())
+                .unwrap_or("")
+        }
+    }
+
+    fn apply_foot_exceptions(&self) -> bool {
+        self.name == "foot"
     }
 }
 
@@ -660,7 +712,7 @@ pub const FOOT_PROFILE: Profile = Profile {
     ],
     access: &["access", "foot"],
     disallow_motorroad: true,
-    disable_restrictions: true,
+    disable_restrictions: false,
 };
 
 /// Example simple routing [Profile] for different kinds of trains.
@@ -870,7 +922,6 @@ mod tests {
         );
     }
 
-    #[ignore = "TODO - foot profile exceptions not yet implemented"]
     #[test]
     fn way_direction_foot() {
         assert_eq!(
@@ -943,7 +994,6 @@ mod tests {
         );
     }
 
-    #[ignore = "TODO - foot profile exceptions not yet implemented"]
     #[test]
     fn restriction_kind_foot() {
         assert_eq!(

@@ -96,22 +96,22 @@ impl<P: Parser> Iterator for Reader<P> {
                         },
                         // "way" or "relation" can't be self-closing
                         b"tag" => {
-                            if let Some(tags) = feature_tags(&mut f) {
-                                if let Some((k, v)) = parse_tag(start) {
+                            if let Some((feature_id, tags)) = feature_tags(&mut f) {
+                                if let Some((k, v)) = parse_tag(start, feature_id) {
                                     tags.insert(k, v);
                                 }
                             }
                         }
                         b"nd" => {
-                            if let Some(nodes) = feature_nodes(&mut f) {
-                                if let Some(ref_) = parse_nd(start) {
+                            if let Some((way_id, nodes)) = feature_nodes(&mut f) {
+                                if let Some(ref_) = parse_nd(start, way_id) {
                                     nodes.push(ref_);
                                 }
                             }
                         }
                         b"member" => {
-                            if let Some(members) = feature_members(&mut f) {
-                                if let Some(member) = parse_member(start) {
+                            if let Some((relation_id, members)) = feature_members(&mut f) {
+                                if let Some(member) = parse_member(start, relation_id) {
                                     members.push(member);
                                 }
                             }
@@ -164,8 +164,6 @@ impl<R: io::BufRead> Reader<IoParser<R>> {
 }
 
 fn parse_node(start: quick_xml::events::BytesStart<'_>) -> Option<Node> {
-    // TODO: Log errors instead of silencing them
-
     let mut id: i64 = 0;
     let mut lat = f32::NAN;
     let mut lon = f32::NAN;
@@ -173,34 +171,54 @@ fn parse_node(start: quick_xml::events::BytesStart<'_>) -> Option<Node> {
     for attr in start.attributes() {
         let attr = attr.ok()?;
         match attr.key.as_ref() {
-            b"id" => id = from_utf8(&attr.value).ok()?.parse().ok()?,
-            b"lat" => lat = from_utf8(&attr.value).ok()?.parse().ok()?,
-            b"lon" => lon = from_utf8(&attr.value).ok()?.parse().ok()?,
+            b"id" => id = parse_i64(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "node has invalid id {:?} - skipping node", String::from_utf8_lossy(&attr.value));
+                None
+            })?,
+
+            b"lat" => lat = parse_f32(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "node has invalid lat {:?} - skipping node", String::from_utf8_lossy(&attr.value));
+                None
+            })?,
+
+            b"lon" => lon = parse_f32(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "node has invalid lon {:?} - skipping node", String::from_utf8_lossy(&attr.value));
+                None
+            })?,
+
             _ => {}
         }
     }
 
-    if id != 0 && lat.is_finite() && lon.is_finite() {
+    if id == 0 {
+        log::warn!(target: "routex.osm", "node has missing or zero id - skipping node");
+        None
+    } else if !lat.is_finite() {
+        log::warn!(target: "routex.osm", "node {} has missing or invalid lat - skipping node", id);
+        None
+    } else if !lon.is_finite() {
+        log::warn!(target: "routex.osm", "node {} has missing or invalid lon - skipping node", id);
+        None
+    } else {
         Some(Node {
             id: id,
             osm_id: id,
             lat: lat,
             lon: lon,
         })
-    } else {
-        None
     }
 }
 
 fn parse_way(start: quick_xml::events::BytesStart<'_>) -> Option<model::Way> {
-    // TODO: Log errors instead of silencing them
-
     let mut id: i64 = 0;
 
     for attr in start.attributes() {
         let attr = attr.ok()?;
         match attr.key.as_ref() {
-            b"id" => id = from_utf8(&attr.value).ok()?.parse().ok()?,
+            b"id" => id = parse_i64(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "way has invalid id {:?} - skipping way", String::from_utf8_lossy(&attr.value));
+                None
+            })?,
             _ => {}
         }
     }
@@ -212,19 +230,22 @@ fn parse_way(start: quick_xml::events::BytesStart<'_>) -> Option<model::Way> {
             tags: HashMap::default(),
         })
     } else {
+        log::warn!(target: "routex.osm", "way has missing or zero id - skipping way");
         None
     }
 }
 
 fn parse_relation(start: quick_xml::events::BytesStart<'_>) -> Option<model::Relation> {
-    // TODO: Log errors instead of silencing them
-
     let mut id: i64 = 0;
 
     for attr in start.attributes() {
         let attr = attr.ok()?;
         match attr.key.as_ref() {
-            b"id" => id = from_utf8(&attr.value).ok()?.parse().ok()?,
+            b"id" => id = parse_i64(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "relation has invalid id {:?} - skipping relation", String::from_utf8_lossy(&attr.value));
+                None
+            })?,
+
             _ => {}
         }
     }
@@ -236,41 +257,53 @@ fn parse_relation(start: quick_xml::events::BytesStart<'_>) -> Option<model::Rel
             tags: HashMap::default(),
         })
     } else {
+        log::warn!(target: "routex.osm", "relation has missing or zero id - skipping relation");
         None
     }
 }
 
-fn parse_tag(start: quick_xml::events::BytesStart<'_>) -> Option<(String, String)> {
-    // TODO: Log errors instead of silencing them
-
+fn parse_tag(
+    start: quick_xml::events::BytesStart<'_>,
+    feature_id: i64,
+) -> Option<(String, String)> {
     let mut k = None;
     let mut v = None;
 
     for attr in start.attributes() {
         let attr = attr.ok()?;
         match attr.key.as_ref() {
-            b"k" => k = from_utf8(&attr.value).ok().map(|s| s.to_string()),
-            b"v" => v = from_utf8(&attr.value).ok().map(|s| s.to_string()),
+            b"k" => k = Some(parse_string(&attr.value)),
+            b"v" => v = Some(parse_string(&attr.value)),
             _ => {}
         }
     }
 
-    if let Some(k) = k {
-        Some((k, v.unwrap_or_default()))
-    } else {
-        None
+    match (k, v) {
+        (None, _) => {
+            log::warn!(target: "routex.osm", "feature {} has tag without a key - skipping tag", feature_id);
+            None
+        }
+
+        (_, None) => {
+            log::warn!(target: "routex.osm", "feature {} has tag without a value - skipping tag", feature_id);
+            None
+        }
+
+        (Some(k), Some(v)) => Some((k, v)),
     }
 }
 
-fn parse_nd(start: quick_xml::events::BytesStart<'_>) -> Option<i64> {
-    // TODO: Log errors instead of silencing them
-
+fn parse_nd(start: quick_xml::events::BytesStart<'_>, way_id: i64) -> Option<i64> {
     let mut ref_: i64 = 0;
 
     for attr in start.attributes() {
         let attr = attr.ok()?;
         match attr.key.as_ref() {
-            b"ref" => ref_ = from_utf8(&attr.value).ok()?.parse().ok()?,
+            b"ref" => ref_ = parse_i64(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "way {} member has invalid ref {:?} - skipping node", way_id, String::from_utf8_lossy(&attr.value));
+                None
+            })?,
+
             _ => {}
         }
     }
@@ -278,13 +311,15 @@ fn parse_nd(start: quick_xml::events::BytesStart<'_>) -> Option<i64> {
     if ref_ != 0 {
         Some(ref_)
     } else {
+        log::warn!(target: "routex.osm", "way {} member has missing or zero ref - skipping node", way_id);
         None
     }
 }
 
-fn parse_member(start: quick_xml::events::BytesStart<'_>) -> Option<model::RelationMember> {
-    // TODO: Log errors instead of silencing them
-
+fn parse_member(
+    start: quick_xml::events::BytesStart<'_>,
+    rel_id: i64,
+) -> Option<model::RelationMember> {
     let mut ref_: i64 = 0;
     let mut type_ = None;
     let mut role = None;
@@ -292,18 +327,54 @@ fn parse_member(start: quick_xml::events::BytesStart<'_>) -> Option<model::Relat
     for attr in start.attributes() {
         let attr = attr.ok()?;
         match attr.key.as_ref() {
-            b"ref" => ref_ = from_utf8(&attr.value).ok()?.parse().ok()?,
-            b"type" => type_ = Some(parse_feature_type(&attr.value)?),
-            b"role" => role = Some(from_utf8(&attr.value).ok()?.to_string()),
+            b"ref" => ref_ = parse_i64(&attr.value).or_else(|| {
+                log::warn!(target: "routex.osm", "relation {} member has invalid ref {:?} - skipping member", rel_id, String::from_utf8_lossy(&attr.value));
+                None
+            })?,
+
+            b"type" => type_ = Some(parse_feature_type(&attr.value)
+                .or_else(|| {
+                    log::warn!(target: "routex.osm", "relation {} member has invalid type {:?} - skipping member", rel_id, String::from_utf8_lossy(&attr.value));
+                    None
+                })?),
+
+
+            b"role" => role = Some(parse_string(&attr.value)),
+
             _ => {}
         }
     }
 
     match (ref_, type_, role) {
-        (0, _, _) => None,
+        (0, _, _) => {
+            log::warn!(target: "routex.osm", "relation {} member has missing or zero ref - skipping member", rel_id);
+            None
+        }
+
+        (_, None, _) => {
+            log::warn!(target: "routex.osm", "relation {} member with ref {} has missing type - skipping member", rel_id, ref_);
+            None
+        }
+
+        (_, _, None) => {
+            log::warn!(target: "routex.osm", "relation {} member with ref {} has missing role - skipping member", rel_id, ref_);
+            None
+        }
+
         (ref_, Some(type_), Some(role)) => Some(model::RelationMember { type_, ref_, role }),
-        _ => None,
     }
+}
+
+fn parse_i64(s: &[u8]) -> Option<i64> {
+    from_utf8(s).ok()?.parse().ok()
+}
+
+fn parse_f32(s: &[u8]) -> Option<f32> {
+    from_utf8(s).ok()?.parse().ok()
+}
+
+fn parse_string(s: &[u8]) -> String {
+    String::from_utf8_lossy(s).to_string()
 }
 
 fn parse_feature_type(s: &[u8]) -> Option<model::FeatureType> {
@@ -315,27 +386,29 @@ fn parse_feature_type(s: &[u8]) -> Option<model::FeatureType> {
     }
 }
 
-fn feature_tags<'a>(f: &'a mut Option<model::Feature>) -> Option<&'a mut HashMap<String, String>> {
+fn feature_tags<'a>(
+    f: &'a mut Option<model::Feature>,
+) -> Option<(i64, &'a mut HashMap<String, String>)> {
     match f {
         None => None,
         Some(model::Feature::Node(_)) => None,
-        Some(model::Feature::Way(ref mut w)) => Some(&mut w.tags),
-        Some(model::Feature::Relation(ref mut r)) => Some(&mut r.tags),
+        Some(model::Feature::Way(ref mut w)) => Some((w.id, &mut w.tags)),
+        Some(model::Feature::Relation(ref mut r)) => Some((r.id, &mut r.tags)),
     }
 }
 
-fn feature_nodes<'a>(f: &'a mut Option<model::Feature>) -> Option<&'a mut Vec<i64>> {
+fn feature_nodes<'a>(f: &'a mut Option<model::Feature>) -> Option<(i64, &'a mut Vec<i64>)> {
     match f {
-        Some(model::Feature::Way(ref mut w)) => Some(&mut w.nodes),
+        Some(model::Feature::Way(ref mut w)) => Some((w.id, &mut w.nodes)),
         _ => None,
     }
 }
 
 fn feature_members<'a>(
     f: &'a mut Option<model::Feature>,
-) -> Option<&'a mut Vec<model::RelationMember>> {
+) -> Option<(i64, &'a mut Vec<model::RelationMember>)> {
     match f {
-        Some(model::Feature::Relation(ref mut r)) => Some(&mut r.members),
+        Some(model::Feature::Relation(ref mut r)) => Some((r.id, &mut r.members)),
         _ => None,
     }
 }

@@ -31,9 +31,7 @@ impl<'a> GraphBuilder<'a> {
         let phantom_node_id_counter =
             MAX_NODE_ID.max(g.0.iter().map(|(&node_id, _)| node_id).max().unwrap_or(0));
 
-        // TODO: Log invalid bounding boxes instead of discarding them
-        let ignore_bbox =
-            options.bbox.iter().all(|&x| x == 0.0) || options.bbox.iter().any(|x| !x.is_finite());
+        let ignore_bbox = !is_bbox_applicable(options.bbox);
 
         Self {
             g,
@@ -69,16 +67,27 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn add_node(&mut self, n: Node) {
-        // TODO: Log errors instead of silencing them
+        debug_assert_eq!(n.id, n.osm_id);
 
-        if self.g.get_node(n.id).is_none()
-            && Self::is_valid_node_id(n.id)
-            && self.is_in_bbox(n.lat, n.lon)
-        {
-            debug_assert_eq!(n.id, n.osm_id);
-            self.g.set_node(n);
-            self.unused_nodes.insert(n.id);
+        // Node already exists - ignore
+        if self.g.get_node(n.id).is_some() {
+            return;
         }
+
+        // Node id invalid - ignore & warn
+        if !Self::is_valid_node_id(n.id) {
+            log::warn!(target: "routex.osm", "node with invalid id {} - ignoring", n.id);
+            return;
+        }
+
+        // Node outside of bbox - ignore
+        if !self.is_in_bbox(n.lat, n.lon) {
+            return;
+        }
+
+        // Save node
+        self.g.set_node(n);
+        self.unused_nodes.insert(n.id);
     }
 
     fn is_valid_node_id(id: i64) -> bool {
@@ -114,15 +123,26 @@ impl<'a> GraphBuilder<'a> {
     /// way and validates it. Returns [f32::INFINITY] or a valid (>= 1) penalty value.
     fn get_way_penalty(&self, w: &model::Way) -> f32 {
         let penalty = self.options.profile.way_penalty(&w.tags);
-        if penalty.is_finite() && penalty >= 1.0 {
-            penalty
+        if !penalty.is_finite() {
+            f32::INFINITY // Way not routable
+        } else if penalty < 1.0 {
+            log::error!(target: "routex", "profile has invalid penalty {} - assuming non-routable", penalty);
+            f32::INFINITY
         } else {
-            f32::INFINITY // TODO: Log errors instead of silencing them
+            penalty
         }
     }
 
     fn get_way_nodes(&self, w: &model::Way) -> Vec<i64> {
-        // Remove references to unknown nodes
+        // Check if way has enough nodes
+        if w.nodes.len() < 2 {
+            log::warn!(target: "routex.osm", "way {} has less than 2 nodes - ignoring", w.id);
+            return vec![];
+        }
+
+        // Filter out invalid nodes
+        // NOTE: We don't warn about invalid references, as they may have been deliberately
+        //       filtered out by the bbox. We're not an osm validator.
         let nodes: Vec<i64> = w
             .nodes
             .iter()
@@ -131,7 +151,7 @@ impl<'a> GraphBuilder<'a> {
             .collect();
 
         if nodes.len() < 2 {
-            vec![] // TODO: Warn about too short ways
+            vec![]
         } else {
             nodes
         }
@@ -172,17 +192,21 @@ impl<'a> GraphBuilder<'a> {
     }
 
     fn add_relation(&mut self, r: model::Relation) {
+        match self.add_relation_inner(&r) {
+            Ok(()) => {}
+            Err(e) => e.log(r.id),
+        }
+    }
+
+    fn add_relation_inner(&mut self, r: &model::Relation) -> Result<(), InvalidRestriction> {
         let kind = self.options.profile.restriction_kind(&r.tags);
         if kind == TurnRestriction::Inapplicable {
-            return;
+            return Ok(());
         }
 
-        let nodes = match self.get_restriction_nodes(&r) {
-            Ok(nodes) => nodes,
-            Err(_) => return, // TODO: Warn about invalid relations
-        };
-
-        _ = self.store_restriction(r.id, &nodes, kind); // TODO: Warn about failures
+        let nodes = self.get_restriction_nodes(&r)?;
+        self.store_restriction(&nodes, kind)?;
+        Ok(())
     }
 
     /// Returns the sequence of nodes representing a turn restriction.
@@ -334,7 +358,6 @@ impl<'a> GraphBuilder<'a> {
 
     fn store_restriction(
         &mut self,
-        _relation_id: i64,
         nodes: &[i64],
         kind: TurnRestriction,
     ) -> Result<(), InvalidRestriction> {
@@ -373,40 +396,47 @@ impl<'a> GraphBuilder<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 enum InvalidRestriction {
+    #[error("disjoint turn restriction")]
     Disjoint,
+
+    #[error("multiple 'from' members")]
     MultipleFromMembers,
+
+    #[error("multiple 'to' members")]
     MultipleToMembers,
+
+    #[error("missing 'from' member")]
     MissingFromMember,
+
+    #[error("missing 'to' member")]
     MissingToMember,
+
+    #[error("reference to unknown node {0}")]
     ReferenceToUnknownNode(i64),
+
+    #[error("reference to unknown way {0}")]
     ReferenceToUnknownWay(i64),
+
+    #[error("member with role {0} can't be of type {1}")]
     InvalidMemberType(String, FeatureType),
 }
 
-impl std::fmt::Display for InvalidRestriction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl InvalidRestriction {
+    fn log(&self, relation_id: i64) {
         match self {
-            Self::Disjoint => write!(f, "disjoint turn restriction"),
-            Self::MultipleFromMembers => write!(f, "multiple 'from' members"),
-            Self::MultipleToMembers => write!(f, "multiple 'to' members"),
-            Self::MissingFromMember => write!(f, "missing 'from' member"),
-            Self::MissingToMember => write!(f, "missing 'to' member"),
-            Self::ReferenceToUnknownNode(node_id) => {
-                write!(f, "reference to unknown node {node_id}")
-            }
-            Self::ReferenceToUnknownWay(way_id) => {
-                write!(f, "reference to unknown way {way_id}")
-            }
-            Self::InvalidMemberType(role, type_) => {
-                write!(f, "member with role {role} can't be of type {type_}")
+            // NOTE: We don't warn about invalid references, as they may have been deliberately
+            //       filtered out by the bbox. We're not an osm validator.
+            Self::ReferenceToUnknownNode(_) => {}
+            Self::ReferenceToUnknownWay(_) => {}
+
+            _ => {
+                log::warn!(target: "routex.osm", "relation {} - {} - ignoring", relation_id, self);
             }
         }
     }
 }
-
-impl std::error::Error for InvalidRestriction {}
 
 struct GraphChange {
     /// Map of nodes to clone (including their outgoing edges),
@@ -569,6 +599,31 @@ impl GraphChange {
                 g.set_edge(from, Edge { to, cost });
             }
         }
+    }
+}
+
+fn is_bbox_applicable(bbox: [f32; 4]) -> bool {
+    // All elements 0 - no bbox
+    if bbox.iter().all(|&x| x == 0.0) {
+        return false;
+    }
+
+    // Some elements non-finite - invalid bbox
+    if bbox.iter().any(|x| !x.is_finite()) {
+        log::error!(target: "routex", "bounding box contains non-finite elements - ignoring");
+        return false;
+    }
+
+    // Check min-max pairs
+    let [left, bottom, right, top] = bbox;
+    if left >= right {
+        log::error!(target: "routex", "bounding box has zero areas - left >= right - ignoring");
+        false
+    } else if bottom >= top {
+        log::error!(target: "routex", "bounding box has zero areas - bottom >= top - ignoring");
+        false
+    } else {
+        true
     }
 }
 
@@ -1608,5 +1663,18 @@ mod tests {
             assert_eq!(g.get_edges(11), &[e!(12, 200.0)]);
             assert_eq!(g.get_edges(12), &[e!(4, 200.0)]);
         }
+    }
+
+    #[test]
+    fn test_is_bbox_applicable() {
+        assert_eq!(is_bbox_applicable([0.0, 0.0, 0.0, 0.0]), false);
+        assert_eq!(is_bbox_applicable([0.0, 0.0, 1.0, 1.0]), true);
+        assert_eq!(is_bbox_applicable([-1.0, -1.0, 1.0, 1.0]), true);
+
+        assert_eq!(is_bbox_applicable([0.0, f32::NAN, 1.0, 1.0]), false);
+        assert_eq!(is_bbox_applicable([0.0, 0.0, 1.0, -f32::INFINITY]), false);
+
+        assert_eq!(is_bbox_applicable([0.0, 2.0, 1.0, 1.0]), false);
+        assert_eq!(is_bbox_applicable([2.0, 0.0, 1.0, 1.0]), false);
     }
 }

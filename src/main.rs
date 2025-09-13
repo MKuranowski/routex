@@ -27,6 +27,7 @@ struct Cli {
 }
 
 pub fn main() -> Result<(), Box<dyn Error>> {
+    colog::init();
     let cli = Cli::parse();
 
     let g = load_graph(&cli.osm_file)?;

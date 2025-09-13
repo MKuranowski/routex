@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 bzip2 = "0.6.0"
 clap = { version = "4.5.47", features = ["derive"], optional = true }
+colog = { version = "1.4.0", optional = true }
 flate2 = { version = "1.1.2", features = ["zlib-rs"] }
 log = { version = "0.4.28", features = ["std"] }
 protobuf = "3.7.2"
@@ -15,7 +16,7 @@ quick-xml = "0.37.2"
 thiserror = "2.0.16"
 
 [features]
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:colog"]
 
 [lib]
 name = "routex"

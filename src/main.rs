@@ -4,6 +4,10 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use routex;
 
+#[derive(Debug, thiserror::Error)]
+#[error("{0}: {1}")]
+struct GraphLoadError(PathBuf, #[source] routex::osm::Error);
+
 #[derive(Parser)]
 struct Cli {
     /// The path to the OSM file
@@ -67,13 +71,15 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn load_graph<P: AsRef<Path>>(path: P) -> Result<routex::Graph, Box<dyn Error>> {
+fn load_graph<P: AsRef<Path>>(path: P) -> Result<routex::Graph, GraphLoadError> {
     let mut g = routex::Graph::default();
     let options = routex::osm::Options {
         profile: &routex::osm::CAR_PROFILE,
         file_format: routex::osm::FileFormat::Xml,
         bbox: [0.0; 4],
     };
-    routex::osm::add_features_from_file(&mut g, &options, path)?;
-    Ok(g)
+    match routex::osm::add_features_from_file(&mut g, &options, path.as_ref()) {
+        Ok(()) => Ok(g),
+        Err(e) => Err(GraphLoadError(PathBuf::from(path.as_ref()), e)),
+    }
 }

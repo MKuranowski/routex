@@ -293,10 +293,12 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
     graph: *mut Graph,
     c_options: *const COsmOptions,
     c_filename: *const c_char,
-) {
-    if let (Some(graph), Some(c_options), c_filename) = (
+) -> bool {
+    if let (Some(graph), c_options, c_filename) = (
         graph.as_mut(),
-        c_options.as_ref(),
+        c_options
+            .as_ref()
+            .expect("RoutexOsmOptions must not be NULL"),
         CStr::from_ptr(c_filename),
     ) {
         let c_profile = c_options
@@ -315,8 +317,15 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
 
         let filename = OsStr::from_bytes(c_filename.to_bytes());
 
-        // TODO: Log errors instead of ignoring them
-        let _ = osm::add_features_from_file(graph, &options, filename);
+        match osm::add_features_from_file(graph, &options, filename) {
+            Ok(_) => false,
+            Err(e) => {
+                log::error!(target: "routex", "{}: {}", filename.display(), e);
+                true
+            }
+        }
+    } else {
+        false
     }
 }
 
@@ -326,8 +335,13 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
     c_options: *const COsmOptions,
     content: *const u8,
     content_len: usize,
-) {
-    if let (Some(graph), Some(c_options)) = (graph.as_mut(), c_options.as_ref()) {
+) -> bool {
+    if let (Some(graph), c_options) = (
+        graph.as_mut(),
+        c_options
+            .as_ref()
+            .expect("RoutexOsmOptions must not be NULL"),
+    ) {
         let c_profile = c_options
             .profile
             .as_ref()
@@ -344,8 +358,15 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
 
         let content = std::slice::from_raw_parts(content, content_len);
 
-        // TODO: Log errors instead of ignoring them
-        let _ = osm::add_features_from_buffer(graph, &options, content);
+        match osm::add_features_from_buffer(graph, &options, content) {
+            Ok(_) => false,
+            Err(e) => {
+                log::error!(target: "routex", "<memory>: {}", e);
+                true
+            }
+        }
+    } else {
+        false
     }
 }
 

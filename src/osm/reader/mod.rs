@@ -1,10 +1,10 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
-use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 use graph_builder::GraphBuilder;
 
@@ -12,9 +12,49 @@ use crate::osm::Profile;
 use crate::Graph;
 
 mod graph_builder;
-mod model;
-mod pbf;
-mod xml;
+pub mod model;
+pub mod pbf;
+pub mod xml;
+
+/// Error which can occur during OSM reading and parsing.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum Error {
+    #[error("io: {0}")]
+    Io(#[from] Arc<io::Error>),
+
+    #[error("xml: {0}")]
+    Xml(quick_xml::Error),
+
+    #[error("pbf: {0}")]
+    Pbf(pbf::Error),
+
+    #[error("unknown file format: data does not look like .osm/.osm.gz/osm.bz2/.osm.pbf")]
+    UnknownFileFormat,
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Error::Io(Arc::new(e))
+    }
+}
+
+impl From<quick_xml::Error> for Error {
+    fn from(e: quick_xml::Error) -> Self {
+        match e {
+            quick_xml::Error::Io(ioe) => Error::Io(ioe),
+            _ => Error::Xml(e),
+        }
+    }
+}
+
+impl From<pbf::Error> for Error {
+    fn from(e: pbf::Error) -> Self {
+        match e {
+            pbf::Error::Io(ioe) => Error::Io(ioe),
+            _ => Error::Pbf(e),
+        }
+    }
+}
 
 /// Format of the input OSM file
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +78,8 @@ pub enum FileFormat {
 }
 
 impl FileFormat {
+    /// Attempts to detect the file format based on the initial bytes of the file.
+    /// At least 8 bytes should be provided.
     pub fn detect(b: &[u8]) -> FileFormat {
         if b.starts_with(b"<?xml") || b.starts_with(b"<osm") {
             FileFormat::Xml
@@ -91,7 +133,7 @@ pub fn add_features_from_io<'a, R: io::BufRead>(
     g: &'a mut Graph,
     options: &'a Options<'a>,
     mut reader: R,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     // Attempt to detect the file format if not specified
     let detected_format = if options.file_format == FileFormat::Unknown {
         FileFormat::detect(reader.fill_buf()?)
@@ -100,31 +142,27 @@ pub fn add_features_from_io<'a, R: io::BufRead>(
     };
 
     match detected_format {
-        FileFormat::Unknown => Err(Box::new(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "unknown OSM file format - data doesn't look like .osm, .osm.gz, .osm.bz2 or .osm.pbf",
-        ))),
+        FileFormat::Unknown => Err(Error::UnknownFileFormat),
 
         FileFormat::Xml => {
-            let b = io::BufReader::new(reader);
-            let r = xml::Reader::from_io(b);
-            GraphBuilder::new(g, options).add_features(r)?;
+            let features = xml::features_from_file(reader);
+            GraphBuilder::new(g, options).add_features(features)?;
             Ok(())
         }
 
         FileFormat::XmlGz => {
             let d = flate2::bufread::MultiGzDecoder::new(reader);
             let b = io::BufReader::new(d);
-            let r = xml::Reader::from_io(b);
-            GraphBuilder::new(g, options).add_features(r)?;
+            let features = xml::features_from_file(b);
+            GraphBuilder::new(g, options).add_features(features)?;
             Ok(())
         }
 
         FileFormat::XmlBz2 => {
             let d = bzip2::bufread::MultiBzDecoder::new(reader);
             let b = io::BufReader::new(d);
-            let r = xml::Reader::from_io(b);
-            GraphBuilder::new(g, options).add_features(r)?;
+            let features = xml::features_from_file(b);
+            GraphBuilder::new(g, options).add_features(features)?;
             Ok(())
         }
 
@@ -141,7 +179,7 @@ pub fn add_features_from_file<'a, P: AsRef<Path>>(
     g: &'a mut Graph,
     options: &'a Options<'a>,
     path: P,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let f = File::open(path)?;
     let b = io::BufReader::new(f);
     add_features_from_io(g, options, b)
@@ -152,11 +190,11 @@ pub fn add_features_from_buffer<'a>(
     g: &'a mut Graph,
     options: &'a Options<'a>,
     data: &[u8],
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     if options.file_format == FileFormat::Xml {
         // Fast path is available for in-memory XML data
-        let r = xml::Reader::from_buffer(data);
-        GraphBuilder::new(g, options).add_features(r)?;
+        let features = xml::features_from_buffer(data);
+        GraphBuilder::new(g, options).add_features(features)?;
         Ok(())
     } else {
         // Wrap the buffer in a cursor and use the IO path

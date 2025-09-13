@@ -9,7 +9,8 @@ pub use profile::{
     SUBWAY_PROFILE, TRAM_PROFILE,
 };
 pub use reader::{
-    add_features_from_buffer, add_features_from_file, add_features_from_io, FileFormat, Options,
+    add_features_from_buffer, add_features_from_file, add_features_from_io, Error, FileFormat,
+    Options,
 };
 
 #[cfg(test)]

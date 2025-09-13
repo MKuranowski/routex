@@ -74,8 +74,26 @@ typedef struct RoutexOsmOptions {
     float bbox[4];
 } RoutexOsmOptions;
 
-void routex_graph_add_from_osm_file(RoutexGraph*, RoutexOsmOptions const*, char const* filename);
-void routex_graph_add_from_osm_memory(RoutexGraph*, RoutexOsmOptions const*, unsigned char const* content, size_t content_len);
+/**
+ * Parses OSM data from the provided file and adds it to the provided graph.
+ *
+ * @param g Graph to which the OSM data will be added. If NULL, this function does nothing and returns false.
+ * @param options Options for parsing the OSM data. Must not be NULL.
+ * @param filename Path to the OSM file to be parsed. Must not be NULL.
+ * @returns true if an error occurred, false otherwise
+ */
+bool routex_graph_add_from_osm_file(RoutexGraph* g, RoutexOsmOptions const* options, char const* filename);
+
+/**
+ * Parses OSM data from the provided buffer and adds it to the provided graph.
+ *
+ * @param g Graph to which the OSM data will be added. If NULL, this function does nothing and returns false.
+ * @param options Options for parsing the OSM data. Must not be NULL.
+ * @param content Pointer to the buffer containing OSM data. Must be not be NULL, even if content_len == 0.
+ * @param content_len Length of the buffer in bytes.
+ * @returns true if an error occurred, false otherwise
+ */
+bool routex_graph_add_from_osm_memory(RoutexGraph* g, RoutexOsmOptions const* options, unsigned char const* content, size_t content_len);
 
 typedef enum RoutexRouteResultType {
     RoutexRouteResultTypeOk = 0,

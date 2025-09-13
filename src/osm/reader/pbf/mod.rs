@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::io;
 use std::io::Read;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// Max permitted size for a serialized [blob header](https://wiki.openstreetmap.org/wiki/PBF_Format#File_format) -
 /// 64 KiB.
@@ -27,13 +28,13 @@ const MAX_BLOB_SIZE: u32 = 32 * 1024 * 1024;
 type StringTable = Rc<Vec<String>>;
 
 /// Error which can occur when reading a PBF file.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
     #[error("protobuf: {0}")]
-    Protobuf(#[from] protobuf::Error),
+    Protobuf(#[from] Arc<protobuf::Error>),
 
     #[error("io: {0}")]
-    Io(#[from] io::Error),
+    Io(#[from] Arc<io::Error>),
 
     #[error("BlobHeader too large: {0} > {MAX_BLOB_HEADER_SIZE}")]
     BlobHeaderTooLarge(u32),
@@ -52,6 +53,18 @@ pub enum Error {
 
     #[error("file requires unsupported features: {0:?}")]
     UnsupportedFeatures(Vec<String>),
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Error::Io(Arc::new(e))
+    }
+}
+
+impl From<protobuf::Error> for Error {
+    fn from(e: protobuf::Error) -> Self {
+        Error::Protobuf(Arc::new(e))
+    }
 }
 
 /// Returns an iterator over all features from an OSM PBF file.
@@ -159,10 +172,10 @@ impl<R: io::Read> FileBlocks<R> {
         let blob_header_size = match self.read_blob_header_size()? {
             Some(size) => size,
             None => {
-                return Err(Error::Io(io::Error::new(
+                return Err(Error::Io(Arc::new(io::Error::new(
                     io::ErrorKind::UnexpectedEof,
                     "expected BlobHeader for PrimitiveBlock, got EOF",
-                )))
+                ))))
             }
         };
 
@@ -194,7 +207,7 @@ impl<R: io::Read> FileBlocks<R> {
                 if e.kind() == io::ErrorKind::UnexpectedEof {
                     Ok(None) // no more blobs
                 } else {
-                    Err(Error::Io(e))
+                    Err(Error::Io(Arc::new(e)))
                 }
             }
         }

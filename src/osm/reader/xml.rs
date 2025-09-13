@@ -8,21 +8,32 @@ use std::str::from_utf8;
 use super::model;
 use crate::Node;
 
+pub fn features_from_file<R: io::BufRead>(
+    reader: R,
+) -> impl Iterator<Item = Result<model::Feature, quick_xml::Error>> {
+    Reader::from_io(reader)
+}
+
+pub fn features_from_buffer(
+    b: &[u8],
+) -> impl Iterator<Item = Result<model::Feature, quick_xml::Error>> + '_ {
+    Reader::from_buffer(b)
+}
 /// Parser is a trait for objects which can parse XML.
 ///
 /// This trait only exists to fix the mismatch of
 /// [quick_xml::Reader::read_event] when working on buffered data
 /// and [quick_xml::Reader::read_event_into] when working on IO.
-pub(super) trait Parser {
+trait Parser {
     fn read_event<'a>(&'a mut self) -> quick_xml::Result<quick_xml::events::Event<'a>>;
 }
 
 /// IoParser implements [Parser] over an [std::io::BufRead].
-pub(super) struct IoParser<R: io::BufRead>(quick_xml::Reader<R>, Vec<u8>);
+struct IoParser<R: io::BufRead>(quick_xml::Reader<R>, Vec<u8>);
 
 impl<R: io::BufRead> IoParser<R> {
     #[inline]
-    pub fn new(reader: R) -> Self {
+    fn new(reader: R) -> Self {
         Self(quick_xml::Reader::from_reader(reader), Vec::default())
     }
 }
@@ -35,11 +46,11 @@ impl<R: io::BufRead> Parser for IoParser<R> {
 }
 
 /// BufParser implements [Parser] over a slice of bytes (`&[u8]`).
-pub(super) struct BufParser<'a>(quick_xml::Reader<&'a [u8]>);
+struct BufParser<'a>(quick_xml::Reader<&'a [u8]>);
 
 impl<'a> BufParser<'a> {
     #[inline]
-    pub fn new(data: &'a [u8]) -> Self {
+    fn new(data: &'a [u8]) -> Self {
         Self(quick_xml::Reader::from_reader(data))
     }
 }
@@ -52,14 +63,14 @@ impl<'a> Parser for BufParser<'a> {
 }
 
 /// Reader reads osm [Features](Feature) from an XML file.
-pub(super) struct Reader<P: Parser> {
+struct Reader<P: Parser> {
     parser: P,
     eof: bool,
 }
 
 impl<P: Parser> Reader<P> {
     #[inline]
-    pub fn new(parser: P) -> Self {
+    fn new(parser: P) -> Self {
         Self { parser, eof: false }
     }
 }
@@ -140,14 +151,14 @@ impl<P: Parser> Iterator for Reader<P> {
 
 impl<'a> Reader<BufParser<'a>> {
     #[inline]
-    pub fn from_buffer(data: &'a [u8]) -> Self {
+    fn from_buffer(data: &'a [u8]) -> Self {
         Self::new(BufParser::new(data))
     }
 }
 
 impl<R: io::BufRead> Reader<IoParser<R>> {
     #[inline]
-    pub fn from_io(reader: R) -> Self {
+    fn from_io(reader: R) -> Self {
         Self::new(IoParser::new(reader))
     }
 }

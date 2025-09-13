@@ -235,8 +235,8 @@ impl<R: io::Read> FileBlocks<R> {
 
         let blob = fileformat::Blob::parse_from_bytes(&buf)?;
 
-        // TODO: Don't blindly trust `blob.raw_size` for detecting too large blobs.
-        //       There should be a way to prevent too large allocations during decompression.
+        // FIXME: Don't blindly trust `blob.raw_size` for detecting too large blobs.
+        //        There should be a way to prevent too large allocations during decompression.
         let blob_size = blob.raw_size() as u32;
         if blob_size > MAX_BLOB_SIZE {
             return Err(Error::BlobTooLarge(blob_size));

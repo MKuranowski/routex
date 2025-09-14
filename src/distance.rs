@@ -10,7 +10,7 @@ const EARTH_RADIUS: f64 = 6371.0088;
 const EARTH_DIAMETER: f64 = EARTH_RADIUS + EARTH_RADIUS;
 
 /// Calculates the great-circle distance between two lat-lon positions
-/// on Earth using the `haversine formula <https://en.wikipedia.org/wiki/Haversine_formula>`_.
+/// on Earth using the [haversine formula](https://en.wikipedia.org/wiki/Haversine_formula).
 /// Returns the result in kilometers.
 pub fn earth_distance(lat1: f32, lon1: f32, lat2: f32, lon2: f32) -> f32 {
     let lat1 = (lat1 as f64).to_radians();

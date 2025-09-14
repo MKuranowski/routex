@@ -9,7 +9,7 @@ pub struct Profile<'a> {
     /// Human readable name of the routing profile,
     /// customary the most specific [access tag](https://wiki.openstreetmap.org/wiki/Key:access).
     ///
-    /// This values us not used for actual OSM data interpretation,
+    /// This values is not used for actual OSM data interpretation,
     /// except when set to "foot", which adds the following logic:
     /// - `oneway` tags are ignored - only `oneway:foot` tags are considered, except on:
     ///    - `highway=footway`,

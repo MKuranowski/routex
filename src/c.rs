@@ -405,6 +405,7 @@ pub struct CRouteResult {
 
 impl CRouteResult {
     fn ok(mut nodes: Vec<i64>) -> Self {
+        nodes.shrink_to_fit();
         let ptr = nodes.as_mut_ptr();
         let len = nodes.len().try_into().expect("route length overflow");
         let capacity = nodes

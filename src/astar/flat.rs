@@ -56,7 +56,7 @@ fn reconstruct_flat_path(came_from: &HashMap<i64, i64>, mut last: i64) -> Vec<i6
 ///
 /// Returns an empty vector if there is no route between the two nodes.
 ///
-/// For graphs with turn restrictions, use [find_route_without_turn_around],
+/// For graphs with turn restrictions, use [find_route_without_turn_around](super::find_route_without_turn_around),
 /// as this implementation will generate instructions with immediate turnarounds
 /// (A-B-A) to circumvent any restrictions.
 ///

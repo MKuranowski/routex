@@ -1,17 +1,39 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
+//! OpenStreetMap data parsing into a [Graph](crate::Graph).
+//!
+//! This modules contains functionality to read common OpenStreetMap data formats into
+//! a usable routing graph. It supports [XML](https://wiki.openstreetmap.org/wiki/OSM_XML)
+//! (uncompressed, .gz or .bz2) and [PBF](https://wiki.openstreetmap.org/wiki/PBF_Format).
+//!
+//! The process can be highly customized through the use of [Profiles](Profile).
+//!
+//! Supported OSM features include:
+//! - [oneway](https://wiki.openstreetmap.org/wiki/Key:oneway) tags,
+//! - [access](https://wiki.openstreetmap.org/wiki/Key:access) tags on ways,
+//! - [turn restrictions](https://wiki.openstreetmap.org/wiki/Relation:restriction).
+//!
+//! Notable feature omissions are:
+//! - [access](https://wiki.openstreetmap.org/wiki/Key:access) tags on nodes ([barriers](https://wiki.openstreetmap.org/wiki/Key:barrier)),
+//! - [conditional (especially time-based) restrictions](https://wiki.openstreetmap.org/wiki/Conditional_restrictions).
+
 mod profile;
 mod reader;
 
 pub use profile::{
-    Penalty, Profile, BICYCLE_PROFILE, BUS_PROFILE, CAR_PROFILE, FOOT_PROFILE, RAILWAY_PROFILE,
-    SUBWAY_PROFILE, TRAM_PROFILE,
+    Penalty, Profile, TurnRestriction, BICYCLE_PROFILE, BUS_PROFILE, CAR_PROFILE, FOOT_PROFILE,
+    RAILWAY_PROFILE, SUBWAY_PROFILE, TRAM_PROFILE,
 };
 pub use reader::{
     add_features_from_buffer, add_features_from_file, add_features_from_io, Error, FileFormat,
     Options,
 };
+
+// Expose reader::pbf::Error
+pub mod pbf {
+    pub use super::reader::pbf::Error;
+}
 
 #[cfg(test)]
 mod tests {

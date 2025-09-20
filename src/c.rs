@@ -1,6 +1,11 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
+//! C bindings for this library.
+//!
+//! There should be no need to call this from Rust, but the module needs to be included as
+//! rust doesn't have a crate-type-based conditional compilation.
+
 use super::*;
 
 use std::borrow::Cow;

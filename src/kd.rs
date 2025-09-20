@@ -4,15 +4,29 @@
 use crate::{earth_distance, Graph, Node};
 
 /// KDTree implements the [k-d tree data structure](https://en.wikipedia.org/wiki/K-d_tree),
-/// which can be used to speed up nearest-neighbor search for large datasets. Practice shows
-/// that [crate::Graph::find_nearest_node] takes significantly more time than
-/// [crate::find_route] when generating multiple routes with `routex`. A k-d tree
-/// can help with that, trading memory usage for CPU time.
+/// which can be used to speed up nearest-neighbor search for large datasets.
+///
+/// Practice shows that [Graph::find_nearest_node](crate::Graph::find_nearest_node) takes
+/// significantly more time than [find_route](crate::find_route) when generating multiple routes.
+/// A k-d tree can help with that, trading memory usage for CPU time.
 ///
 /// This implementation assumes euclidean geometry, even though the default distance function
 /// used is [earth_distance]. This results in undefined behavior when points
 /// are close to the ante meridian (180°/-180° longitude) or poles (90°/-90° latitude),
 /// or when the data spans multiple continents.
+///
+/// # Example
+///
+/// ```no_run
+/// let g = routex::Graph::new();
+/// // ... load data into g ...
+///
+/// let kd_tree = routex::KDTree::build_from_graph(&g).unwrap();
+///
+/// // Faster lookup than Graph::find_nearest_node
+/// let start_node = kd_tree.find_nearest_node(43.7384, 7.4246);
+/// let end_node = kd_tree.find_nearest_node(43.7478, 7.4323);
+/// ```
 #[derive(Debug, Clone)]
 pub struct KDTree {
     pivot: Node,
@@ -131,7 +145,7 @@ impl KDTree {
 
 #[inline]
 fn box_option<T>(o: Option<T>) -> Option<Box<T>> {
-    o.map(|thing| Box::new(thing))
+    o.map(Box::new)
 }
 
 #[cfg(test)]

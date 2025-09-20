@@ -66,7 +66,7 @@ fn reconstruct_came_from_path(
 ///
 /// Returns an empty list if there is no route between the two points.
 ///
-/// For graphs without turn restrictions, use [find_route] as it runs faster.
+/// For graphs without turn restrictions, use [find_route](super::find_route) as it runs faster.
 /// This function has an extra dimension - it needs to not only consider the current node,
 /// but also what was the previous node to prevent A-B-A immediate turnaround instructions.
 ///

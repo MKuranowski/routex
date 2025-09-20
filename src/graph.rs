@@ -10,6 +10,12 @@ use std::collections::btree_map::{BTreeMap, Entry};
 pub struct Graph(pub BTreeMap<i64, (Node, Vec<Edge>)>);
 
 impl Graph {
+    /// Creates a new empty graph.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Returns the number of nodes in the graph.
     pub fn len(&self) -> usize {
         self.0.len()

@@ -76,7 +76,7 @@ impl<'a> GraphBuilder<'a> {
 
         // Node id invalid - ignore & warn
         if !Self::is_valid_node_id(n.id) {
-            log::warn!(target: "routex.osm", "node with invalid id {} - ignoring", n.id);
+            log::warn!(target: "routex::osm", "node with invalid id {} - ignoring", n.id);
             return;
         }
 
@@ -136,7 +136,7 @@ impl<'a> GraphBuilder<'a> {
     fn get_way_nodes(&self, w: &model::Way) -> Vec<i64> {
         // Check if way has enough nodes
         if w.nodes.len() < 2 {
-            log::warn!(target: "routex.osm", "way {} has less than 2 nodes - ignoring", w.id);
+            log::warn!(target: "routex::osm", "way {} has less than 2 nodes - ignoring", w.id);
             return vec![];
         }
 
@@ -432,7 +432,7 @@ impl InvalidRestriction {
             Self::ReferenceToUnknownWay(_) => {}
 
             _ => {
-                log::warn!(target: "routex.osm", "relation {} - {} - ignoring", relation_id, self);
+                log::warn!(target: "routex::osm", "relation {} - {} - ignoring", relation_id, self);
             }
         }
     }

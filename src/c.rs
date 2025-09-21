@@ -10,13 +10,111 @@ use super::*;
 
 use std::borrow::Cow;
 use std::collections::btree_map;
-use std::ffi::{c_char, CStr, OsStr};
+use std::ffi::{c_char, c_int, c_void, CStr, OsStr};
 use std::mem::{forget, ManuallyDrop};
 use std::os::unix::ffi::OsStrExt;
 use std::ptr::null_mut;
 use std::slice;
 
 type CGraphIterator<'a> = btree_map::Values<'a, i64, (Node, Vec<Edge>)>;
+
+type CLogCallback = unsafe extern "C" fn(
+    arg: *mut c_void,
+    level: i32,
+    target: *const c_char,
+    message: *const c_char,
+);
+type CFlushCallback = unsafe extern "C" fn(arg: *mut c_void);
+
+struct CLogger {
+    callback: CLogCallback,
+    flush_callback: Option<CFlushCallback>,
+    arg: usize, // rust is stupid and `*mut c_void` is not `Send + Sync`
+    level: log::LevelFilter,
+}
+
+impl CLogger {
+    fn level_as_int(l: log::Level) -> c_int {
+        match l {
+            log::Level::Error => 40,
+            log::Level::Warn => 30,
+            log::Level::Info => 20,
+            log::Level::Debug => 10,
+            log::Level::Trace => 5,
+        }
+    }
+
+    fn int_as_level_filter(i: c_int) -> log::LevelFilter {
+        if i > 40 {
+            log::LevelFilter::Off
+        } else if i > 30 {
+            log::LevelFilter::Error
+        } else if i > 20 {
+            log::LevelFilter::Warn
+        } else if i > 10 {
+            log::LevelFilter::Info
+        } else if i > 5 {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Trace
+        }
+    }
+}
+
+impl log::Log for CLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= self.level
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            let c_message =
+                std::ffi::CString::new(format!("{}", record.args())).unwrap_or_else(|_| {
+                    std::ffi::CString::new("<message with null bytes omitted>").unwrap()
+                });
+
+            unsafe {
+                (self.callback)(
+                    self.arg as *mut c_void,
+                    Self::level_as_int(record.level()),
+                    record.target().as_ptr() as *const c_char,
+                    c_message.as_ptr(),
+                )
+            }
+        }
+    }
+
+    fn flush(&self) {
+        unsafe {
+            if let Some(flush_callback) = self.flush_callback {
+                (flush_callback)(self.arg as *mut c_void);
+            }
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn routex_set_logging_callback(
+    callback: Option<CLogCallback>,
+    flush_callback: Option<CFlushCallback>,
+    arg: *mut c_void,
+    level: c_int,
+) {
+    if let Some(callback) = callback {
+        let filter = CLogger::int_as_level_filter(level);
+        let logger = CLogger {
+            callback,
+            flush_callback,
+            arg: arg as usize,
+            level: filter,
+        };
+
+        log::set_max_level(filter);
+        let _ = log::set_boxed_logger(Box::new(logger));
+    } else {
+        log::set_max_level(log::LevelFilter::Off);
+    }
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn routex_graph_new() -> *mut Graph {
@@ -323,14 +421,14 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
         let filename = OsStr::from_bytes(c_filename.to_bytes());
 
         match osm::add_features_from_file(graph, &options, filename) {
-            Ok(_) => false,
+            Ok(_) => true,
             Err(e) => {
                 log::error!(target: "routex", "{}: {}", filename.display(), e);
-                true
+                false
             }
         }
     } else {
-        false
+        true
     }
 }
 
@@ -364,14 +462,14 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
         let content = std::slice::from_raw_parts(content, content_len);
 
         match osm::add_features_from_buffer(graph, &options, content) {
-            Ok(_) => false,
+            Ok(_) => true,
             Err(e) => {
                 log::error!(target: "routex", "<memory>: {}", e);
-                true
+                false
             }
         }
     } else {
-        false
+        true
     }
 }
 

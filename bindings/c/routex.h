@@ -16,6 +16,53 @@ extern "C" {
 #define ROUTEX_DEFAULT_STEP_LIMIT 1000000
 
 /**
+ * Sets a logging handler for the library.
+ *
+ * The `callback` function will be called whenever the library wants to log something.
+ * Routex makes two types of logs:
+ *
+ * - warnings with target=`routex::osm`, informing about issues with OSM data;
+ *
+ * - errors with target=`routex`, informing about input issues or failures within the library.
+ *
+ * Dependencies of routex technically could also make any logging calls, but they don't
+ * seem to do so.
+ *
+ * The logging levels numbers generally correspond to [Python Logging Levels](https://docs.python.org/3/library/logging.html#logging-levels),
+ * that is:
+ *
+ * - 50 for critical failures (not used in Rust's log crate),
+ *
+ * - 40 for errors,
+ *
+ * - 30 for warnings,
+ *
+ * - 20 for info,
+ *
+ * - 10 for debug,
+ *
+ * - 5 for trace.
+ *
+ * This function leaks a small amount of memory allocated for the logging adapter.
+ * It is advisable to only call this function once.
+ *
+ * @param callback function to call on a logging message, or NULL to disable logging.
+ *     `arg` parameter is passed through as-is, `level` represents message severity (described above),
+ *     `target` describes briefly who made the logging call (e.g. `routex`), and `message` is the actual log message.
+ * @param flush_callback function to call when the library wants to flush any buffered log messages,
+ *    or NULL if no flushing is needed. `arg` parameter is passed through as-is. Currently not used.
+ * @param arg user-provided argument passed to `callback` and `flush_callback` calls
+ * @param min_level minimum logging level to report. Messages with a lower level will be ignored.
+ *    Recommended value is 30 to only see warnings and errors.
+ */
+void routex_set_logging_callback(
+    void (*callback)(void* arg, int level, char const* target, char const* message),
+    void (*flush_callback)(void* arg),
+    void* arg,
+    int min_level
+);
+
+/**
  * An element of the @ref RoutexGraph.
  *
  * Due to turn restriction processing, one OpenStreetMap node
@@ -295,7 +342,7 @@ typedef struct RoutexOsmOptions {
  * @param graph Graph to which the OSM data will be added. If NULL, this function does nothing and returns false.
  * @param options Options for parsing the OSM data. Must not be NULL.
  * @param filename Path to the OSM file to be parsed. Must not be NULL.
- * @returns true if an error occurred, false otherwise
+ * @returns false if an error occurred, true otherwise
  */
 bool routex_graph_add_from_osm_file(RoutexGraph* graph, RoutexOsmOptions const* options, char const* filename);
 
@@ -306,7 +353,7 @@ bool routex_graph_add_from_osm_file(RoutexGraph* graph, RoutexOsmOptions const* 
  * @param options Options for parsing the OSM data. Must not be NULL.
  * @param content Pointer to the buffer containing OSM data. Must be not be NULL, even if content_len == 0.
  * @param content_len Length of the buffer in bytes.
- * @returns true if an error occurred, false otherwise
+ * @returns false if an error occurred, true otherwise
  */
 bool routex_graph_add_from_osm_memory(RoutexGraph* graph, RoutexOsmOptions const* options, unsigned char const* content, size_t content_len);
 

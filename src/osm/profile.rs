@@ -301,6 +301,31 @@ impl<'a> Profile<'a> {
 
 /// Example routing [Profile] for cars, with high preference for faster roads
 /// and with appropriate [access tags](https://wiki.openstreetmap.org/wiki/Key:access).
+///
+/// Penalties:
+///
+/// | Tag                    | Penalty |
+/// |------------------------|---------|
+/// | highway=motorway       | 1.0     |
+/// | highway=motorway_link  | 1.0     |
+/// | highway=trunk          | 2.0     |
+/// | highway=trunk_link     | 2.0     |
+/// | highway=primary        | 5.0     |
+/// | highway=primary_link   | 5.0     |
+/// | highway=secondary      | 6.5     |
+/// | highway=secondary_link | 6.5     |
+/// | highway=tertiary       | 10.0    |
+/// | highway=tertiary_link  | 10.0    |
+/// | highway=unclassified   | 10.0    |
+/// | highway=minor          | 10.0    |
+/// | highway=residential    | 15.0    |
+/// | highway=living_street  | 20.0    |
+/// | highway=track          | 20.0    |
+/// | highway=service        | 20.0    |
+///
+/// Access tags: `access`, `vehicle`, `motor_vehicle`, `motorcar`.
+///
+/// Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn restrictions.
 pub const CAR_PROFILE: Profile = Profile {
     name: "motorcar",
     penalties: &[
@@ -392,6 +417,31 @@ pub const CAR_PROFILE: Profile = Profile {
 
 /// Example routing [Profile] for buses, without high preference differences for different
 /// route types and with appropriate [access tags](https://wiki.openstreetmap.org/wiki/Key:access).
+///
+/// Penalties:
+///
+/// | Tag                    | Penalty |
+/// |------------------------|---------|
+/// | highway=motorway       | 1.0     |
+/// | highway=motorway_link  | 1.0     |
+/// | highway=trunk          | 1.0     |
+/// | highway=trunk_link     | 1.0     |
+/// | highway=primary        | 1.1     |
+/// | highway=primary_link   | 1.1     |
+/// | highway=secondary      | 1.15    |
+/// | highway=secondary_link | 1.15    |
+/// | highway=tertiary       | 1.15    |
+/// | highway=tertiary_link  | 1.15    |
+/// | highway=unclassified   | 1.5     |
+/// | highway=minor          | 1.5     |
+/// | highway=residential    | 2.5     |
+/// | highway=living_street  | 2.5     |
+/// | highway=track          | 5.0     |
+/// | highway=service        | 5.0     |
+///
+/// Access tags: `access`, `vehicle`, `motor_vehicle`, `psv`, `bus`, `routing:ztm`.
+///
+/// Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn restrictions.
 pub const BUS_PROFILE: Profile = Profile {
     name: "bus",
     penalties: &[
@@ -490,6 +540,34 @@ pub const BUS_PROFILE: Profile = Profile {
 
 /// Example routing [Profile] for bicycles, with preferences for quieter roads
 /// and with appropriate [access tags](https://wiki.openstreetmap.org/wiki/Key:access).
+///
+/// Penalties:
+///
+/// | Tag                    | Penalty |
+/// |------------------------|---------|
+/// | highway=trunk          | 50.0    |
+/// | highway=trunk_link     | 50.0    |
+/// | highway=primary        | 10.0    |
+/// | highway=primary_link   | 10.0    |
+/// | highway=secondary      | 3.0     |
+/// | highway=secondary_link | 3.0     |
+/// | highway=tertiary       | 2.5     |
+/// | highway=tertiary_link  | 2.5     |
+/// | highway=unclassified   | 2.5     |
+/// | highway=minor          | 2.5     |
+/// | highway=cycleway       | 1.0     |
+/// | highway=residential    | 1.0     |
+/// | highway=living_street  | 1.5     |
+/// | highway=track          | 2.0     |
+/// | highway=service        | 2.0     |
+/// | highway=bridleway      | 3.0     |
+/// | highway=footway        | 3.0     |
+/// | highway=steps          | 5.0     |
+/// | highway=path           | 2.0     |
+///
+/// Access tags: `access`, `vehicle`, `bicycle`.
+///
+/// Disallows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn restrictions.
 pub const BICYCLE_PROFILE: Profile = Profile {
     name: "bicycle",
     penalties: &[
@@ -596,6 +674,42 @@ pub const BICYCLE_PROFILE: Profile = Profile {
 
 /// Example routing [Profile] for walking, with preferences for quieter roads
 /// and with appropriate [access tags](https://wiki.openstreetmap.org/wiki/Key:access).
+///
+/// Penalties:
+///
+/// | Tag                       | Penalty |
+/// |---------------------------|---------|
+/// | highway=trunk             | 4.0     |
+/// | highway=trunk_link        | 4.0     |
+/// | highway=primary           | 2.0     |
+/// | highway=primary_link      | 2.0     |
+/// | highway=secondary         | 1.3     |
+/// | highway=secondary_link    | 1.3     |
+/// | highway=tertiary          | 1.2     |
+/// | highway=tertiary_link     | 1.2     |
+/// | highway=unclassified      | 1.2     |
+/// | highway=minor             | 1.2     |
+/// | highway=residential       | 1.2     |
+/// | highway=living_street     | 1.2     |
+/// | highway=track             | 1.2     |
+/// | highway=service           | 1.2     |
+/// | highway=bridleway         | 1.2     |
+/// | highway=footway           | 1.05    |
+/// | highway=path              | 1.05    |
+/// | highway=steps             | 1.15    |
+/// | highway=pedestrian        | 1.0     |
+/// | highway=platform          | 1.1     |
+/// | railway=platform          | 1.1     |
+/// | public_transport=platform | 1.1     |
+///
+/// Access tags: `access`, `foot`.
+///
+/// Disallows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad).
+///
+/// One-way is only considered when explicitly tagged with `oneway:foot` or on
+/// `highway=footway`, `highway=path`, `highway=steps`, `highway/public_transport/railway=platform`.
+///
+/// Turn restrictions are only considered when explicitly tagged with `restriction:foot`.
 pub const FOOT_PROFILE: Profile = Profile {
     name: "foot",
     penalties: &[
@@ -716,6 +830,19 @@ pub const FOOT_PROFILE: Profile = Profile {
 };
 
 /// Example simple routing [Profile] for different kinds of trains.
+///
+/// Penalties:
+///
+/// | Tag                  | Penalty |
+/// |----------------------|---------|
+/// | railway=rail         | 1.0     |
+/// | railway=light_rail   | 1.0     |
+/// | railway=subway       | 1.0     |
+/// | railway=narrow_gauge | 1.0     |
+///
+/// Access tags: `access`, `train`.
+///
+/// Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn restrictions.
 pub const RAILWAY_PROFILE: Profile = Profile {
     name: "train",
     penalties: &[
@@ -745,9 +872,20 @@ pub const RAILWAY_PROFILE: Profile = Profile {
     disable_restrictions: false,
 };
 
-/// Example simple routing [Profile] for routing over subway lines.
+/// Example simple routing [Profile] for routing over tram lines.
+///
+/// Penalties:
+///
+/// | Tag                  | Penalty |
+/// |----------------------|---------|
+/// | railway=tram         | 1.0     |
+/// | railway=light_rail   | 1.0     |
+///
+/// Access tags: `access`, `tram`.
+///
+/// Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn restrictions.
 pub const TRAM_PROFILE: Profile = Profile {
-    name: "train",
+    name: "tram",
     penalties: &[
         Penalty {
             key: "railway",
@@ -766,8 +904,18 @@ pub const TRAM_PROFILE: Profile = Profile {
 };
 
 /// Example simple routing [Profile] for routing over tram and light rail lines.
+///
+/// Penalties:
+///
+/// | Tag            | Penalty |
+/// |----------------|---------|
+/// | railway=subway | 1.0     |
+///
+/// Access tags: `access`, `subway`.
+///
+/// Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn restrictions.
 pub const SUBWAY_PROFILE: Profile = Profile {
-    name: "train",
+    name: "subway",
     penalties: &[Penalty {
         key: "railway",
         value: "subway",

@@ -391,6 +391,53 @@ pub struct COsmOptions {
     pub bbox: [f32; 4],
 }
 
+impl COsmOptions {
+    fn parsed_with_profile<'a>(&self, profile: &'a osm::Profile<'a>) -> osm::Options<'a> {
+        osm::Options {
+            profile,
+            file_format: self.format.into(),
+            bbox: self.bbox,
+        }
+    }
+}
+
+unsafe fn with_parsed_options<F: FnOnce(&osm::Options<'_>) -> R, R>(
+    c_options: *const COsmOptions,
+    f: F,
+) -> R {
+    let c_options = c_options
+        .as_ref()
+        .expect("RoutexOsmOptions must not be NULL");
+
+    // Special profile values to profile reallocation
+    let predefined_profile = match c_options.profile as usize {
+        1 => Some(&osm::CAR_PROFILE),
+        2 => Some(&osm::BUS_PROFILE),
+        3 => Some(&osm::BICYCLE_PROFILE),
+        4 => Some(&osm::FOOT_PROFILE),
+        5 => Some(&osm::RAILWAY_PROFILE),
+        6 => Some(&osm::TRAM_PROFILE),
+        7 => Some(&osm::SUBWAY_PROFILE),
+        _ => None,
+    };
+
+    if let Some(profile) = predefined_profile {
+        let options = c_options.parsed_with_profile(profile);
+        f(&options)
+    } else {
+        let c_profile = c_options
+            .profile
+            .as_ref()
+            .expect("RoutexOsmOptions.profile must not be NULL");
+        let profile_strings = c_profile.build_string_table();
+        let profile_penalties = c_profile.penalties_as_rust(&profile_strings);
+        let profile_access = c_profile.access_as_rust(&profile_strings);
+        let profile = c_profile.as_rust(&profile_strings[0], &profile_penalties, &profile_access);
+        let options = c_options.parsed_with_profile(&profile);
+        f(&options)
+    }
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn routex_graph_add_from_osm_file(
     graph: *mut Graph,
@@ -404,23 +451,11 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
             .expect("RoutexOsmOptions must not be NULL"),
         CStr::from_ptr(c_filename),
     ) {
-        let c_profile = c_options
-            .profile
-            .as_ref()
-            .expect("RoutexOsmOptions.profile must not be NULL");
-        let profile_strings = c_profile.build_string_table();
-        let profile_penalties = c_profile.penalties_as_rust(&profile_strings);
-        let profile_access = c_profile.access_as_rust(&profile_strings);
-        let profile = c_profile.as_rust(&profile_strings[0], &profile_penalties, &profile_access);
-        let options = osm::Options {
-            profile: &profile,
-            file_format: c_options.format.into(),
-            bbox: c_options.bbox,
-        };
-
         let filename = OsStr::from_bytes(c_filename.to_bytes());
-
-        match osm::add_features_from_file(graph, &options, filename) {
+        let result = with_parsed_options(c_options, |options| {
+            osm::add_features_from_file(graph, options, filename)
+        });
+        match result {
             Ok(_) => true,
             Err(e) => {
                 log::error!(target: "routex", "{}: {}", filename.display(), e);
@@ -445,23 +480,11 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
             .as_ref()
             .expect("RoutexOsmOptions must not be NULL"),
     ) {
-        let c_profile = c_options
-            .profile
-            .as_ref()
-            .expect("RoutexOsmOptions.profile must not be NULL");
-        let profile_strings = c_profile.build_string_table();
-        let profile_penalties = c_profile.penalties_as_rust(&profile_strings);
-        let profile_access = c_profile.access_as_rust(&profile_strings);
-        let profile = c_profile.as_rust(&profile_strings[0], &profile_penalties, &profile_access);
-        let options = osm::Options {
-            profile: &profile,
-            file_format: c_options.format.into(),
-            bbox: c_options.bbox,
-        };
-
         let content = std::slice::from_raw_parts(content, content_len);
-
-        match osm::add_features_from_buffer(graph, &options, content) {
+        let result = with_parsed_options(c_options, |options| {
+            osm::add_features_from_buffer(graph, options, content)
+        });
+        match result {
             Ok(_) => true,
             Err(e) => {
                 log::error!(target: "routex", "<memory>: {}", e);
@@ -547,7 +570,7 @@ impl CRouteResult {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_find_route(
+pub unsafe extern "C" fn routex_find_route(
     graph: *const Graph,
     from_id: i64,
     to_id: i64,

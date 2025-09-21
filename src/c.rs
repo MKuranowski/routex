@@ -10,7 +10,7 @@ use super::*;
 
 use std::borrow::Cow;
 use std::collections::btree_map;
-use std::ffi::{c_char, c_int, c_void, CStr, OsStr};
+use std::ffi::{c_char, c_int, c_void, CStr, CString, OsStr};
 use std::mem::{forget, ManuallyDrop};
 use std::os::unix::ffi::OsStrExt;
 use std::ptr::null_mut;
@@ -68,16 +68,15 @@ impl log::Log for CLogger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            let c_message =
-                std::ffi::CString::new(format!("{}", record.args())).unwrap_or_else(|_| {
-                    std::ffi::CString::new("<message with null bytes omitted>").unwrap()
-                });
-
             unsafe {
+                let c_message =
+                    CString::from_vec_unchecked(format!("{}", record.args()).into_bytes());
+                let c_target = CString::from_vec_unchecked(record.target().as_bytes().to_vec());
+
                 (self.callback)(
                     self.arg as *mut c_void,
                     Self::level_as_int(record.level()),
-                    record.target().as_ptr() as *const c_char,
+                    c_target.as_ptr(),
                     c_message.as_ptr(),
                 )
             }

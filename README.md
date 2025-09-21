@@ -55,12 +55,12 @@ Compiled libraries are placed in `target/release`.
 ## TODOs
 
 - [x] Rust library
-- [ ] C bindings
+- [x] C bindings
     - [x] Graphs
     - [x] K-D Tree
     - [x] OSM
-    - [ ] Common Profiles
-    - [ ] Logging
+    - [x] Common Profiles
+    - [x] Logging
 - [ ] C++ bindings
 - [ ] Python bindings
 - [ ] CLI program

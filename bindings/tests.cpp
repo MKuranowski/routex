@@ -32,7 +32,7 @@ static std::string_view osm_file_fixture =
     "</way>\n"
     "<way id='-13'>\n"
     "  <nd ref='-4' /><nd ref='-5' /><nd ref='-3' />\n"
-    "  <tag k='highway' v='residential' />\n"
+    "  <tag k='highway' v='service' />\n"
     "</way>\n"
     "<relation id='-20'>\n"
     "  <member type='way' ref='-10' role='from' />\n"
@@ -43,7 +43,7 @@ static std::string_view osm_file_fixture =
     "</relation>\n"
     "</osm>\n";
 
-TEST(Graph, GetSetDeleteNodeAndSize) {
+TEST(Graph, ManipulateNodes) {
     routex::Graph g = {};
 
     // Check size() and is_empty() on an empty Graph
@@ -162,7 +162,7 @@ TEST(Graph, FindNearestNodeCanonical) {
     EXPECT_EQ(g.find_nearest_node(0.02, 0.02).id, 1);
 }
 
-TEST(Graph, GetSetDeleteEdge) {
+TEST(Graph, ManipulateEdges) {
     routex::Graph g = {};
     g.set_node(routex::Node{.id = 1, .osm_id = 1, .lat = 0.01, .lon = 0.01});
     g.set_node(routex::Node{.id = 2, .osm_id = 2, .lat = 0.02, .lon = 0.01});
@@ -367,7 +367,7 @@ TEST(Graph, AddFromOsmFile) {
     EXPECT_EQ(g.size(), 6);
 }
 
-TEST(Graph, AddFromOsmFileDoesNotExist) {
+TEST(Graph, AddFromOsmFileError) {
     routex::Graph g = {};
     routex::osm::Options o = {
         .profile = routex::osm::ProfileCar,
@@ -388,6 +388,33 @@ TEST(Graph, AddFromOsmMemory) {
     g.add_from_osm_memory(&o, osm_file_fixture.data(), osm_file_fixture.size());
 
     EXPECT_EQ(g.size(), 6);
+}
+
+TEST(Graph, AddFromOsmCustomProfile) {
+    routex::Graph g = {};
+
+    routex::osm::Penalty penalties[2] = {
+        {.key = "highway", .value = "tertiary", .penalty = 1.0},
+        {.key = "highway", .value = "residential", .penalty = 2.0},
+    };
+    char const* access[2] = {"access", "vehicle"};
+    routex::osm::Profile p = {
+        .name = "car",
+        .penalties = penalties,
+        .penalties_len = 2,
+        .access = access,
+        .access_len = 2,
+        .disallow_motorroad = false,
+        .disable_restrictions = true,
+    };
+    routex::osm::Options o = {
+        .profile = &p,
+        .file_format = RoutexOsmFormatXml,
+        .bbox = {0},
+    };
+    g.add_from_osm_memory(&o, osm_file_fixture.data(), osm_file_fixture.size());
+
+    EXPECT_EQ(g.size(), 4);
 }
 
 TEST(Utility, EarthDistance) {

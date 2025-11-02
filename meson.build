@@ -30,8 +30,11 @@ wrapper_extra_args = []
 if get_option('optimization') == 's' or get_option('optimization') == '2' or get_option('optimization') == '3'
   wrapper_extra_args += ['--release']
 endif
-if meson.is_cross_build()
-  wrapper_extra_args += ['--target', meson.get_external_property('cargo_target')]
+if meson.has_external_property('cargo_build_command')
+  wrapper_extra_args += ['--cmd', meson.get_external_property('cargo_build_command')]
+endif
+if meson.has_external_property('cargo_build_target')
+  wrapper_extra_args += ['--target', meson.get_external_property('cargo_build_target')]
 endif
 
 # Build the libraries by executing cargo

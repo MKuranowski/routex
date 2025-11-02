@@ -201,6 +201,10 @@ dependency_names = routex
 
 > ⚠️🏗️ Python bindings are work-in-progress
 
+## Cross-Compiling
+
+Use [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) and [cargo-xwin](https://github.com/rust-cross/cargo-xwin).
+
 ## TODOs
 
 - [x] Rust library

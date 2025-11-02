@@ -10,9 +10,8 @@ use super::*;
 
 use std::borrow::Cow;
 use std::collections::btree_map;
-use std::ffi::{c_char, c_int, c_void, CStr, CString, OsStr};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::mem::{forget, ManuallyDrop};
-use std::os::unix::ffi::OsStrExt;
 use std::ptr::null_mut;
 use std::slice;
 
@@ -450,14 +449,14 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
             .expect("RoutexOsmOptions must not be NULL"),
         CStr::from_ptr(c_filename),
     ) {
-        let filename = OsStr::from_bytes(c_filename.to_bytes());
+        let filename = str::from_utf8_unchecked(c_filename.to_bytes());
         let result = with_parsed_options(c_options, |options| {
             osm::add_features_from_file(graph, options, filename)
         });
         match result {
             Ok(_) => true,
             Err(e) => {
-                log::error!(target: "routex", "{}: {}", filename.display(), e);
+                log::error!(target: "routex", "{}: {}", filename, e);
                 false
             }
         }

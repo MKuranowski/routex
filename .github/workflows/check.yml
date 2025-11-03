@@ -48,4 +48,4 @@ jobs:
         run: cargo fmt --check
 
       - name: Check C++ formatting
-        run: clang-format -Werror --dry-run bindings/**/*.cpp bindings/**/*.h bindings/**/*.hpp
+        run: clang-format -Werror --dry-run bindings/include/routex.h bindings/include/routex.hpp bindings/tests.cpp

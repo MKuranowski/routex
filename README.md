@@ -7,6 +7,19 @@ and runs A* to find shortest paths between nodes. Interpretation of OSM data
 is customizable via [profiles](crate::osm::Profile). Routex supports one-way streets,
 access tags (on ways only) and turn restrictions.
 
+## TODOs
+
+- [x] Rust library
+- [x] C bindings
+    - [x] Graphs
+    - [x] K-D Tree
+    - [x] OSM
+    - [x] Common Profiles
+    - [x] Logging
+- [x] C++ bindings
+- [ ] Python bindings
+- [ ] CLI program
+
 ## Usage
 
 routex is written in [Rust](https://www.rust-lang.org/) and uses [Cargo](https://doc.rust-lang.org/cargo/) for dependency management and compilation.
@@ -203,20 +216,27 @@ dependency_names = routex
 
 ## Cross-Compiling
 
-Use [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) and [cargo-xwin](https://github.com/rust-cross/cargo-xwin).
+It's recommended to use [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) and [cargo-xwin](https://github.com/rust-cross/cargo-xwin).
 
-## TODOs
+The Meson wrapper project also supports cross-compilation, through the use of 2 external properties:
+- `cargo_build_command` - the command to use in place of `cargo build`. Example values include `cargo zigbuild`,
+    `cargo xwin build` or `cross build`. It's processed using Python's [shlex.split](https://docs.python.org/3/library/shlex.html#shlex.split),
+    and the first argument is assumed to be an executable, searched using [shutil.which](https://docs.python.org/3/library/shutil.html#shutil.which).
+- `cargo_build_target` - if set, append a `--target ${cargo_build_target}` to the argument list when executing
+    `${cargo_build_command}`. Causes the wrapper to search for the built library in `target/${cargo_build_target}/`
+    instead of the usual `target/`.
 
-- [x] Rust library
-- [x] C bindings
-    - [x] Graphs
-    - [x] K-D Tree
-    - [x] OSM
-    - [x] Common Profiles
-    - [x] Logging
-- [x] C++ bindings
-- [ ] Python bindings
-- [ ] CLI program
+## Release Checklist
+
+Note that routex is supposed to use [semantic versioning](https://semver.org/).
+
+1. Make sure the working directory is clean, all the tests and formatting checks pass.
+2. Bump version numbers in Cargo.toml, meson.build and README.md. Commit that change and
+    tag it with `vX.Y.Z`. Push that tag along the latest `main` to GitHub.
+3. `cargo publish`
+4. Cross-compile static and dynamic versions of the library for most common platforms (`./cross_compile.py`).
+    Attach them as artifacts to a new GitHub release, along with the routex.h and routex.hpp headers.
+5. Notify and prepare any out-of-tree bindings.
 
 ## License
 

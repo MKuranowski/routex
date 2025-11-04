@@ -71,11 +71,17 @@ else:
 # Copy out the dynamic library
 if out_dynamic:
     src_dynamic = target_dir / out_dynamic.name
+    if not src_dynamic.exists() and out_dynamic.name.startswith("lib"):
+        # Windows workaround, instead of "libroutx.dll" Cargo produces "routx.dll"
+        src_dynamic = target_dir / out_dynamic.name[3:]
     print("+", "cp", src_dynamic, out_dynamic, file=sys.stderr)
     shutil.copy2(src_dynamic, out_dynamic)
 
 # Copy out the static library
 if out_static:
     src_static = target_dir / out_static.name
+    if not src_static.exists() and out_static.name.startswith("lib"):
+        # Windows workaround, instead of "libroutx.lib" Cargo produces "routx.lib"
+        src_static = target_dir / out_static.name[3:]
     print("+", "cp", src_static, out_static, file=sys.stderr)
     shutil.copy2(src_static, out_static)

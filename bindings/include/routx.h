@@ -586,36 +586,37 @@ typedef enum RoutxRouteResultType {
     RoutxRouteResultTypeStepLimitExceeded = 2,
 } RoutxRouteResultType;
 
+/**
+ * A list of nodes, returned as a result of successful route search.
+ */
+typedef struct RoutxRouteResultOk {
+    /// Sequence of nodes of the route.
+    /// If `len == 0`, this might be set to NULL or to a dangling pointer - such pointer
+    /// must not be used.
+    int64_t* nodes;
+
+    /// Length of the route.
+    uint32_t len;
+
+    /// Capacity of the `nodes` array; used for internal bookkeeping.
+    uint32_t capacity;
+} RoutxRouteResultAsOk;
+
+/**
+ * find_route called with a reference to a non-existing note.
+ */
+typedef struct RoutxRouteResultInvalidReference {
+    /// ID of the non-existing node
+    int64_t invalid_node_id;
+} RoutxRouteResultInvalidReference;
+
 typedef struct RoutxRouteResult {
     union {
-        /**
-         * A list of node, returned as a result of successful route search.
-         *
-         * Valid if and only if `type` is set to @ref RoutxRouteResultTypeOk.
-         */
-        struct {
-            /// Sequence of nodes of the route.
-            /// If `len == 0`, this might be set to NULL or to a dangling pointer - such pointer
-            /// must not be used.
-            int64_t* nodes;
+        /// List of nodes, valid if and only if `type` is set to @ref RoutxRouteResultTypeOk.
+        RoutxRouteResultAsOk as_ok;
 
-            /// Length of the route.
-            uint32_t len;
-
-            /// Capacity of the `nodes` array; used for internal bookkeeping.
-            uint32_t capacity;
-        } as_ok;
-
-        /**
-         * The `from` or `to` parameter of routx_find_route()/
-         * routx_find_route_without_turn_around() does not exist in the graph.
-         *
-         * Valid if and only if `type` is set to @ref RoutxRouteResultTypeInvalidReference.
-         */
-        struct {
-            /// ID of the non-existing node
-            int64_t invalid_node_id;
-        } as_invalid_reference;
+        /// Reference to a non-existing node, valid if and only if `type` is set to @ref RoutxRouteResultTypeInvalidReference.
+        RoutxRouteResultInvalidReference as_invalid_reference;
     };
 
     /**

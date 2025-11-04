@@ -427,8 +427,8 @@ TEST(Utility, EarthDistance) {
     float falenica_lat = 52.16125;
     float falenica_lon = 21.21147;
 
-    EXPECT_NEAR(routx::earth_distance(centrum_lat, centrum_lon, stadion_lat, stadion_lon),
-                2.49049, 1e-6);
+    EXPECT_NEAR(routx::earth_distance(centrum_lat, centrum_lon, stadion_lat, stadion_lon), 2.49049,
+                1e-6);
     EXPECT_NEAR(routx::earth_distance(centrum_lat, centrum_lon, falenica_lat, falenica_lon),
                 15.692483, 1e-6);
 }

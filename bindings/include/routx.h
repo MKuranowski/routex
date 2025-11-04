@@ -58,8 +58,8 @@ extern "C" {
  *    Recommended value is 30 to only see warnings and errors.
  */
 void routx_set_logging_callback(void (*callback)(void* arg, int level, char const* target,
-                                                  char const* message),
-                                 void (*flush_callback)(void* arg), void* arg, int min_level);
+                                                 char const* message),
+                                void (*flush_callback)(void* arg), void* arg, int min_level);
 
 /**
  * An element of the @ref RoutxGraph.
@@ -199,7 +199,7 @@ RoutxNode routx_graph_find_nearest_node(RoutxGraph const* graph, float lat, floa
  * @returns the number of edges
  */
 size_t routx_graph_get_edges(RoutxGraph const* graph, int64_t from_id,
-                              RoutxEdge const** edges_ptr);
+                             RoutxEdge const** edges_ptr);
 
 /**
  * Gets the cost of a @ref RoutxEdge from one node to another.
@@ -551,7 +551,7 @@ typedef struct RoutxOsmOptions {
  * @returns false if an error occurred, true otherwise
  */
 bool routx_graph_add_from_osm_file(RoutxGraph* graph, RoutxOsmOptions const* options,
-                                    char const* filename);
+                                   char const* filename);
 
 /**
  * Parses OSM data from the provided buffer and adds it to the provided graph.
@@ -565,7 +565,7 @@ bool routx_graph_add_from_osm_file(RoutxGraph* graph, RoutxOsmOptions const* opt
  * @returns false if an error occurred, true otherwise
  */
 bool routx_graph_add_from_osm_memory(RoutxGraph* graph, RoutxOsmOptions const* options,
-                                      char const* content, size_t content_len);
+                                     char const* content, size_t content_len);
 
 /**
  * High-level route search status, also used as the tag for the anonymous union in
@@ -650,7 +650,7 @@ typedef struct RoutxRouteResult {
  * consuming, especially on large datasets. Recommended value is @ref ROUTX_DEFAULT_STEP_LIMIT.
  */
 RoutxRouteResult routx_find_route(RoutxGraph const* graph, int64_t from, int64_t to,
-                                    size_t step_limit);
+                                  size_t step_limit);
 
 /**
  * Finds the shortest route between two nodes using the
@@ -670,7 +670,7 @@ RoutxRouteResult routx_find_route(RoutxGraph const* graph, int64_t from, int64_t
  * consuming, especially on large datasets. Recommended value is @ref ROUTX_DEFAULT_STEP_LIMIT.
  */
 RoutxRouteResult routx_find_route_without_turn_around(RoutxGraph const* graph, int64_t from,
-                                                        int64_t to, size_t step_limit);
+                                                      int64_t to, size_t step_limit);
 
 /**
  * Deallocates a @ref RoutxRouteResult created by routx_find_route() or

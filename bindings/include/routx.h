@@ -615,7 +615,8 @@ typedef struct RoutxRouteResult {
         /// List of nodes, valid if and only if `type` is set to @ref RoutxRouteResultTypeOk.
         RoutxRouteResultAsOk as_ok;
 
-        /// Reference to a non-existing node, valid if and only if `type` is set to @ref RoutxRouteResultTypeInvalidReference.
+        /// Reference to a non-existing node, valid if and only if `type` is set to
+        /// @ref RoutxRouteResultTypeInvalidReference.
         RoutxRouteResultInvalidReference as_invalid_reference;
     };
 

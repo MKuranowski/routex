@@ -344,10 +344,10 @@ class TemporaryFile {
     TemporaryFile& operator=(TemporaryFile const&) = delete;
     TemporaryFile& operator=(TemporaryFile&& o) = delete;
 
-    std::filesystem::path const& path() const { return m_path; }
+    std::string const& path() const { return m_path; }
 
    private:
-    std::filesystem::path m_path;
+    std::string m_path;
 };
 
 TEST(Graph, AddFromOsmFile) {

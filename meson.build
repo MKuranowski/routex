@@ -74,13 +74,16 @@ import('pkgconfig').generate(
   libraries: [routx_dynamic],
 )
 
-# Get gtest
-gtest_main_dep = dependency('gtest_main', fallback: ['gtest', 'gtest_main_dep'])
+# Only run tests when building natively
+if meson.can_run_host_binaries()
+  # Get gtest
+  gtest_main_dep = dependency('gtest_main', fallback: ['gtest', 'gtest_main_dep'])
 
-# Build & run tests for the bindings
-test_executable = executable(
-  'test-exe',
-  ['bindings/tests.cpp'],
-  dependencies: [routx_dep, gtest_main_dep],
-)
-test('test', test_executable)
+  # Build & run tests for the bindings
+  test_executable = executable(
+    'test-exe',
+    ['bindings/tests.cpp'],
+    dependencies: [routx_dep, gtest_main_dep],
+  )
+  test('test', test_executable)
+endif

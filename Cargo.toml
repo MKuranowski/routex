@@ -1,7 +1,9 @@
 [package]
 name = "routex"
-version = "0.1.0"
-authors = ["Mikołaj Kuranowski"]
+version = "1.0.0"
+description = "Simple routing over OpenStreetMap data"
+authors = ["Mikołaj Kuranowski <mkuranowski+foss@gmail.com>"]
+repository = "https://github.com/mkuranowski/routex"
 edition = "2021"
 license = "MIT"
 

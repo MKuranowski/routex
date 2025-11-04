@@ -5,15 +5,7 @@ import os
 import shlex
 import sys
 from argparse import ArgumentParser
-from dataclasses import dataclass
 from typing import cast
-
-
-@dataclass
-class Configuration:
-    cargo_target: str
-    zig_target: str
-
 
 TARGET_TO_CMD = {
     "aarch64-apple-darwin": "cargo zigbuild --target @TARGET@",

@@ -92,7 +92,7 @@ impl log::Log for CLogger {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_set_logging_callback(
+pub unsafe extern "C" fn routx_set_logging_callback(
     callback: Option<CLogCallback>,
     flush_callback: Option<CFlushCallback>,
     arg: *mut c_void,
@@ -115,19 +115,19 @@ pub unsafe extern "C" fn routex_set_logging_callback(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_new() -> *mut Graph {
+pub unsafe extern "C" fn routx_graph_new() -> *mut Graph {
     Box::into_raw(Box::<Graph>::default())
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_delete(ptr: *mut Graph) {
+pub unsafe extern "C" fn routx_graph_delete(ptr: *mut Graph) {
     if !ptr.is_null() {
         drop(Box::from_raw(ptr));
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_get_nodes(
+pub unsafe extern "C" fn routx_graph_get_nodes(
     graph: *const Graph,
     iterator_ptr: *mut *mut CGraphIterator<'_>,
 ) -> usize {
@@ -147,7 +147,7 @@ pub unsafe extern "C" fn routex_graph_get_nodes(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_iterator_next(iterator: *mut CGraphIterator<'_>) -> Node {
+pub unsafe extern "C" fn routx_graph_iterator_next(iterator: *mut CGraphIterator<'_>) -> Node {
     if let Some(iterator) = iterator.as_mut() {
         if let Some((node, _)) = iterator.next() {
             return *node;
@@ -158,14 +158,14 @@ pub unsafe extern "C" fn routex_graph_iterator_next(iterator: *mut CGraphIterato
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_iterator_delete(iterator: *mut CGraphIterator<'_>) {
+pub unsafe extern "C" fn routx_graph_iterator_delete(iterator: *mut CGraphIterator<'_>) {
     if !iterator.is_null() {
         drop(Box::from_raw(iterator));
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_get_node(graph: *const Graph, id: i64) -> Node {
+pub unsafe extern "C" fn routx_graph_get_node(graph: *const Graph, id: i64) -> Node {
     graph
         .as_ref()
         .and_then(|g| g.get_node(id))
@@ -173,7 +173,7 @@ pub unsafe extern "C" fn routex_graph_get_node(graph: *const Graph, id: i64) -> 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_set_node(graph: *mut Graph, node: Node) -> bool {
+pub unsafe extern "C" fn routx_graph_set_node(graph: *mut Graph, node: Node) -> bool {
     if let Some(graph) = graph.as_mut() {
         graph.set_node(node)
     } else {
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn routex_graph_set_node(graph: *mut Graph, node: Node) ->
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_delete_node(graph: *mut Graph, id: i64) -> bool {
+pub unsafe extern "C" fn routx_graph_delete_node(graph: *mut Graph, id: i64) -> bool {
     if let Some(graph) = graph.as_mut() {
         graph.delete_node(id)
     } else {
@@ -191,7 +191,7 @@ pub unsafe extern "C" fn routex_graph_delete_node(graph: *mut Graph, id: i64) ->
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_find_nearest_node(
+pub unsafe extern "C" fn routx_graph_find_nearest_node(
     graph: *const Graph,
     lat: f32,
     lon: f32,
@@ -203,7 +203,7 @@ pub unsafe extern "C" fn routex_graph_find_nearest_node(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_get_edges(
+pub unsafe extern "C" fn routx_graph_get_edges(
     graph: *const Graph,
     from_id: i64,
     out_edges: *mut *const Edge,
@@ -225,7 +225,7 @@ pub unsafe extern "C" fn routex_graph_get_edges(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_get_edge(
+pub unsafe extern "C" fn routx_graph_get_edge(
     graph: *const Graph,
     from_id: i64,
     to_id: i64,
@@ -237,11 +237,7 @@ pub unsafe extern "C" fn routex_graph_get_edge(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_set_edge(
-    graph: *mut Graph,
-    from_id: i64,
-    edge: Edge,
-) -> bool {
+pub unsafe extern "C" fn routx_graph_set_edge(graph: *mut Graph, from_id: i64, edge: Edge) -> bool {
     if let Some(graph) = graph.as_mut() {
         graph.set_edge(from_id, edge)
     } else {
@@ -250,7 +246,7 @@ pub unsafe extern "C" fn routex_graph_set_edge(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_delete_edge(
+pub unsafe extern "C" fn routx_graph_delete_edge(
     graph: *mut Graph,
     from_id: i64,
     to_id: i64,
@@ -405,7 +401,7 @@ unsafe fn with_parsed_options<F: FnOnce(&osm::Options<'_>) -> R, R>(
 ) -> R {
     let c_options = c_options
         .as_ref()
-        .expect("RoutexOsmOptions must not be NULL");
+        .expect("RoutxOsmOptions must not be NULL");
 
     // Special profile values to profile reallocation
     let predefined_profile = match c_options.profile as usize {
@@ -426,7 +422,7 @@ unsafe fn with_parsed_options<F: FnOnce(&osm::Options<'_>) -> R, R>(
         let c_profile = c_options
             .profile
             .as_ref()
-            .expect("RoutexOsmOptions.profile must not be NULL");
+            .expect("RoutxOsmOptions.profile must not be NULL");
         let profile_strings = c_profile.build_string_table();
         let profile_penalties = c_profile.penalties_as_rust(&profile_strings);
         let profile_access = c_profile.access_as_rust(&profile_strings);
@@ -437,7 +433,7 @@ unsafe fn with_parsed_options<F: FnOnce(&osm::Options<'_>) -> R, R>(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_add_from_osm_file(
+pub unsafe extern "C" fn routx_graph_add_from_osm_file(
     graph: *mut Graph,
     c_options: *const COsmOptions,
     c_filename: *const c_char,
@@ -446,7 +442,7 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
         graph.as_mut(),
         c_options
             .as_ref()
-            .expect("RoutexOsmOptions must not be NULL"),
+            .expect("RoutxOsmOptions must not be NULL"),
         CStr::from_ptr(c_filename),
     ) {
         let filename = str::from_utf8_unchecked(c_filename.to_bytes());
@@ -456,7 +452,7 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
         match result {
             Ok(_) => true,
             Err(e) => {
-                log::error!(target: "routex", "{}: {}", filename, e);
+                log::error!(target: "routx", "{}: {}", filename, e);
                 false
             }
         }
@@ -466,7 +462,7 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_file(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
+pub unsafe extern "C" fn routx_graph_add_from_osm_memory(
     graph: *mut Graph,
     c_options: *const COsmOptions,
     content: *const u8,
@@ -476,7 +472,7 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
         graph.as_mut(),
         c_options
             .as_ref()
-            .expect("RoutexOsmOptions must not be NULL"),
+            .expect("RoutxOsmOptions must not be NULL"),
     ) {
         let content = std::slice::from_raw_parts(content, content_len);
         let result = with_parsed_options(c_options, |options| {
@@ -485,7 +481,7 @@ pub unsafe extern "C" fn routex_graph_add_from_osm_memory(
         match result {
             Ok(_) => true,
             Err(e) => {
-                log::error!(target: "routex", "<memory>: {}", e);
+                log::error!(target: "routx", "<memory>: {}", e);
                 false
             }
         }
@@ -568,7 +564,7 @@ impl CRouteResult {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_find_route(
+pub unsafe extern "C" fn routx_find_route(
     graph: *const Graph,
     from_id: i64,
     to_id: i64,
@@ -595,7 +591,7 @@ pub unsafe extern "C" fn routex_find_route(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_find_route_without_turn_around(
+pub unsafe extern "C" fn routx_find_route_without_turn_around(
     graph: *const Graph,
     from_id: i64,
     to_id: i64,
@@ -622,7 +618,7 @@ pub unsafe extern "C" fn routex_find_route_without_turn_around(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_route_result_delete(result: CRouteResult) {
+pub unsafe extern "C" fn routx_route_result_delete(result: CRouteResult) {
     match result.type_ {
         CRouteResultType::Ok => {
             let ok = ManuallyDrop::into_inner(result.inner.ok);
@@ -646,7 +642,7 @@ pub unsafe extern "C" fn routex_route_result_delete(result: CRouteResult) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_kd_tree_new(graph: *const Graph) -> *mut KDTree {
+pub unsafe extern "C" fn routx_kd_tree_new(graph: *const Graph) -> *mut KDTree {
     if let Some(graph) = graph.as_ref() {
         if let Some(kd) = KDTree::build_from_graph(graph) {
             return Box::into_raw(Box::new(kd));
@@ -657,14 +653,14 @@ pub unsafe extern "C" fn routex_kd_tree_new(graph: *const Graph) -> *mut KDTree 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_kd_tree_delete(ptr: *mut KDTree) {
+pub unsafe extern "C" fn routx_kd_tree_delete(ptr: *mut KDTree) {
     if !ptr.is_null() {
         drop(Box::from_raw(ptr));
     }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_kd_tree_find_nearest_node(
+pub unsafe extern "C" fn routx_kd_tree_find_nearest_node(
     kd_tree: *const KDTree,
     lat: f32,
     lon: f32,
@@ -676,6 +672,6 @@ pub unsafe extern "C" fn routex_kd_tree_find_nearest_node(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn routex_earth_distance(lat1: f32, lon1: f32, lat2: f32, lon2: f32) -> f32 {
+pub unsafe extern "C" fn routx_earth_distance(lat1: f32, lon1: f32, lat2: f32, lon2: f32) -> f32 {
     earth_distance(lat1, lon1, lat2, lon2)
 }

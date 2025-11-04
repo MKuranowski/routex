@@ -1,5 +1,5 @@
 project(
-  'routex',
+  'routx',
   'cpp',
   license: 'MIT',
   version: '1.0.0',
@@ -38,9 +38,9 @@ if meson.has_external_property('cargo_build_target')
 endif
 
 # Build the libraries by executing cargo
-routex = custom_target(
-  'routex',
-  output: ['libroutex' + dynamic_lib_suffix, 'libroutex' + static_lib_suffix],
+routx = custom_target(
+  'routx',
+  output: ['libroutx' + dynamic_lib_suffix, 'libroutx' + static_lib_suffix],
   command: [
     py,
     wrapper,
@@ -55,23 +55,23 @@ routex = custom_target(
   install: true,
   install_dir: [get_option('libdir'), false],
 )
-routex_dynamic = routex[0]
-routex_static = routex[1]
+routx_dynamic = routx[0]
+routx_static = routx[1]
 
 # Make this project usable as a Meson subproject
-routex_dep = declare_dependency(
-  link_with: routex_static,
+routx_dep = declare_dependency(
+  link_with: routx_static,
   include_directories: include_directories('bindings/include'),
   dependencies: [],
 )
-meson.override_dependency('routex', routex_dep)
+meson.override_dependency('routx', routx_dep)
 
-# Make routex usable from system's package manager
-install_headers('bindings/include/routex.h', 'bindings/include/routex.hpp')
+# Make routx usable from system's package manager
+install_headers('bindings/include/routx.h', 'bindings/include/routx.hpp')
 import('pkgconfig').generate(
-  name: 'routex',
+  name: 'routx',
   description: 'Simple routing over OSM data (C & C++ bindings)',
-  libraries: [routex_dynamic],
+  libraries: [routx_dynamic],
 )
 
 # Get gtest
@@ -81,6 +81,6 @@ gtest_main_dep = dependency('gtest_main', fallback: ['gtest', 'gtest_main_dep'])
 test_executable = executable(
   'test-exe',
   ['bindings/tests.cpp'],
-  dependencies: [routex_dep, gtest_main_dep],
+  dependencies: [routx_dep, gtest_main_dep],
 )
 test('test', test_executable)

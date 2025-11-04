@@ -1,8 +1,8 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
-#ifndef ROUTEX_H
-#define ROUTEX_H
+#ifndef ROUTX_H
+#define ROUTX_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -12,20 +12,20 @@
 extern "C" {
 #endif
 
-/// Recommended A* step limit for routex_find_route() and routex_find_route_without_turn_around().
-#define ROUTEX_DEFAULT_STEP_LIMIT 1000000
+/// Recommended A* step limit for routx_find_route() and routx_find_route_without_turn_around().
+#define ROUTX_DEFAULT_STEP_LIMIT 1000000
 
 /**
  * Sets a logging handler for the library.
  *
  * The `callback` function will be called whenever the library wants to log something.
- * Routex makes two types of logs:
+ * Routx makes two types of logs:
  *
- * - warnings with target=`routex::osm`, informing about issues with OSM data;
+ * - warnings with target=`routx::osm`, informing about issues with OSM data;
  *
- * - errors with target=`routex`, informing about input issues or failures within the library.
+ * - errors with target=`routx`, informing about input issues or failures within the library.
  *
- * Dependencies of routex technically could also make any logging calls, but they don't
+ * Dependencies of routx technically could also make any logging calls, but they don't
  * seem to do so.
  *
  * The logging levels numbers generally correspond to [Python Logging
@@ -48,7 +48,7 @@ extern "C" {
  *
  * @param callback function to call on a logging message, or NULL to disable logging.
  *     `arg` parameter is passed through as-is, `level` represents message severity (described
- * above), `target` describes briefly who made the logging call (e.g. `routex`), and `message` is
+ * above), `target` describes briefly who made the logging call (e.g. `routx`), and `message` is
  * the actual log message.
  * @param flush_callback function to call when the library wants to flush any buffered log
  * messages, or NULL if no flushing is needed. `arg` parameter is passed through as-is. Currently
@@ -57,12 +57,12 @@ extern "C" {
  * @param min_level minimum logging level to report. Messages with a lower level will be ignored.
  *    Recommended value is 30 to only see warnings and errors.
  */
-void routex_set_logging_callback(void (*callback)(void* arg, int level, char const* target,
+void routx_set_logging_callback(void (*callback)(void* arg, int level, char const* target,
                                                   char const* message),
                                  void (*flush_callback)(void* arg), void* arg, int min_level);
 
 /**
- * An element of the @ref RoutexGraph.
+ * An element of the @ref RoutxGraph.
  *
  * Due to turn restriction processing, one OpenStreetMap node
  * may be represented by multiple nodes in the graph. If that is the
@@ -71,86 +71,86 @@ void routex_set_logging_callback(void (*callback)(void* arg, int level, char con
  *
  * Nodes with `id == 0` signify the absence of a node.
  */
-typedef struct RoutexNode {
+typedef struct RoutxNode {
     int64_t id;
     int64_t osm_id;
     float lat;
     float lon;
-} RoutexNode;
+} RoutxNode;
 
 /**
- * Outgoing (one-way) connection from a @ref RoutexNode.
+ * Outgoing (one-way) connection from a @ref RoutxNode.
  *
  * `cost` must be greater than the crow-flies distance between the two nodes.
  */
-typedef struct RoutexEdge {
+typedef struct RoutxEdge {
     int64_t to;
     float cost;
-} RoutexEdge;
+} RoutxEdge;
 
 /**
- * OpenStreetMap-based network representation as a set of @ref RoutexNode "RoutexNodes"
- * and @ref RoutexEdge "RoutexEdges" between them.
+ * OpenStreetMap-based network representation as a set of @ref RoutxNode "RoutxNodes"
+ * and @ref RoutxEdge "RoutxEdges" between them.
  */
-typedef struct RoutexGraph RoutexGraph;
+typedef struct RoutxGraph RoutxGraph;
 
 /**
- * Iterator over @ref RoutexNode "RoutexNodes" contained in a @ref RoutexGraph.
+ * Iterator over @ref RoutxNode "RoutxNodes" contained in a @ref RoutxGraph.
  */
-typedef struct RoutexGraphIterator RoutexGraphIterator;
+typedef struct RoutxGraphIterator RoutxGraphIterator;
 
 /**
- * Allocates a new, empty @ref RoutexGraph.
+ * Allocates a new, empty @ref RoutxGraph.
  *
- * Must be deallocated with routex_graph_delete().
+ * Must be deallocated with routx_graph_delete().
  */
-RoutexGraph* routex_graph_new(void);
+RoutxGraph* routx_graph_new(void);
 
 /**
- * Deallocates a @ref RoutexGraph created by routex_graph_new(). The graph may be NULL.
+ * Deallocates a @ref RoutxGraph created by routx_graph_new(). The graph may be NULL.
  */
-void routex_graph_delete(RoutexGraph* graph);
+void routx_graph_delete(RoutxGraph* graph);
 
 /**
- * Returns the number of @ref RoutexNode "RoutexNodes" in a Graph,
+ * Returns the number of @ref RoutxNode "RoutxNodes" in a Graph,
  * and (optionally) creates an iterator over them.
  *
  * The Graph must not be modified while any iterators are allocated.
  *
  * @param[in] g Graph to get the nodes of. May be NULL - in this case no nodes will be reported.
  * @param[out] it_ptr Optional (NULLable) destination of the returned opaque iterator. If not NULL,
- * routex_graph_iterator_delete() must be called to deallocate the iterator.
+ * routx_graph_iterator_delete() must be called to deallocate the iterator.
  * @returns the number of nodes
  */
-size_t routex_graph_get_nodes(RoutexGraph const* graph, RoutexGraphIterator** it_ptr);
+size_t routx_graph_get_nodes(RoutxGraph const* graph, RoutxGraphIterator** it_ptr);
 
 /**
- * Advances a @ref RoutexGraphIterator "node iterator" and returns the next node.
+ * Advances a @ref RoutxGraphIterator "node iterator" and returns the next node.
  * A zero node (`id == 0`) will be returned to mark the end of iteration.
  *
  * The iterator may be NULL, in which case this function returns a zero node.
  */
-RoutexNode routex_graph_iterator_next(RoutexGraphIterator* it);
+RoutxNode routx_graph_iterator_next(RoutxGraphIterator* it);
 
 /**
- * Deallocates a @ref RoutexGraphIterator created by routex_graph_get_nodes().
+ * Deallocates a @ref RoutxGraphIterator created by routx_graph_get_nodes().
  *
  * May be called without exhausting the iterator, or with a NULL iterator.
  */
-void routex_graph_iterator_delete(RoutexGraphIterator* it);
+void routx_graph_iterator_delete(RoutxGraphIterator* it);
 
 /**
  * Finds a node with the provided id. If no such node was found, returns a zero (`id == 0`) node.
  *
  * If the graph is NULL, returns a zero node.
  */
-RoutexNode routex_graph_get_node(RoutexGraph const* graph, int64_t id);
+RoutxNode routx_graph_get_node(RoutxGraph const* graph, int64_t id);
 
 /**
- * Creates or updates a @ref RoutexNode with the provided id.
+ * Creates or updates a @ref RoutxNode with the provided id.
  *
- * All outgoing and incoming edges are preserved, thus updating a @ref RoutexNode position
- * might result in violation of the @ref RoutexEdge invariant (and thus break route finding).
+ * All outgoing and incoming edges are preserved, thus updating a @ref RoutxNode position
+ * might result in violation of the @ref RoutxEdge invariant (and thus break route finding).
  * It **is discouraged** to update nodes, and it is the caller's responsibility not to break this
  * invariant.
  *
@@ -158,35 +158,35 @@ RoutexNode routex_graph_get_node(RoutexGraph const* graph, int64_t id);
  *
  * @returns true if an existing node was updated/overwritten, false otherwise
  */
-bool routex_graph_set_node(RoutexGraph* graph, RoutexNode node);
+bool routx_graph_set_node(RoutxGraph* graph, RoutxNode node);
 
 /**
- * Deletes a @ref RoutexNode with the provided id.
+ * Deletes a @ref RoutxNode with the provided id.
  *
  * Outgoing edges are removed, but incoming edges are preserved (for performance reasons).
  * Thus, deleting a node and then reusing its id might result in violation of
- * @ref RoutexEdge cost invariant (breaking route finding) and **is therefore discouraged**.
+ * @ref RoutxEdge cost invariant (breaking route finding) and **is therefore discouraged**.
  * It is the caller's responsibility not to break this invariant.
  *
  * When called with a NULL graph, this function does nothing and return false.
  *
  * @returns true if a node was actually deleted, false otherwise
  */
-bool routex_graph_delete_node(RoutexGraph* graph, int64_t id);
+bool routx_graph_delete_node(RoutxGraph* graph, int64_t id);
 
 /**
- * Finds the closest canonical (`id == osm_id`) @ref RoutexNode to the given position.
+ * Finds the closest canonical (`id == osm_id`) @ref RoutxNode to the given position.
  *
- * This function requires computing distance to every @ref RoutexNode in the @ref RoutexGraph,
- * and is not suitable for large graphs or for multiple searches. Use @ref RoutexKDTree
- * (routex_kd_tree_new()) for faster NN finding.
+ * This function requires computing distance to every @ref RoutxNode in the @ref RoutxGraph,
+ * and is not suitable for large graphs or for multiple searches. Use @ref RoutxKDTree
+ * (routx_kd_tree_new()) for faster NN finding.
  *
  * If the graph is NULL or has no nodes, returns a zero (`id == 0`) node.
  */
-RoutexNode routex_graph_find_nearest_node(RoutexGraph const* graph, float lat, float lon);
+RoutxNode routx_graph_find_nearest_node(RoutxGraph const* graph, float lat, float lon);
 
 /**
- * Gets all outgoing @ref RoutexEdge "RoutexEdges" from a node with a given id.
+ * Gets all outgoing @ref RoutxEdge "RoutxEdges" from a node with a given id.
  *
  * The Graph must not be modified while using the return edge array, as it might be reallocated.
  *
@@ -198,17 +198,17 @@ RoutexNode routex_graph_find_nearest_node(RoutexGraph const* graph, float lat, f
  * not be used.
  * @returns the number of edges
  */
-size_t routex_graph_get_edges(RoutexGraph const* graph, int64_t from_id,
-                              RoutexEdge const** edges_ptr);
+size_t routx_graph_get_edges(RoutxGraph const* graph, int64_t from_id,
+                              RoutxEdge const** edges_ptr);
 
 /**
- * Gets the cost of a @ref RoutexEdge from one node to another.
+ * Gets the cost of a @ref RoutxEdge from one node to another.
  * Returns positive infinity when the provided edge can't be found, or when the graph is NULL.
  */
-float routex_graph_get_edge(RoutexGraph const* graph, int64_t from_id, int64_t to_id);
+float routx_graph_get_edge(RoutxGraph const* graph, int64_t from_id, int64_t to_id);
 
 /**
- * Creates or updates a @ref RoutexEdge from a node with a given id.
+ * Creates or updates a @ref RoutxEdge from a node with a given id.
  *
  * The `cost` must not be smaller than the crow-flies distance between nodes,
  * as this would violate the A* invariant and break route finding. It is the caller's
@@ -218,38 +218,38 @@ float routex_graph_get_edge(RoutexGraph const* graph, int64_t from_id, int64_t t
  *
  * @returns true if an existing edge was updated, false otherwise
  */
-bool routex_graph_set_edge(RoutexGraph* graph, int64_t from_id, RoutexEdge edge);
+bool routx_graph_set_edge(RoutxGraph* graph, int64_t from_id, RoutxEdge edge);
 
 /**
- * Removes a @ref RoutexEdge from one node to another.
+ * Removes a @ref RoutxEdge from one node to another.
  * If no such edge exists (or the graph is NULL), does nothing.
  *
  * @returns true if an edge was removed, false otherwise
  */
-bool routex_graph_delete_edge(RoutexGraph* graph, int64_t from_id, int64_t to_id);
+bool routx_graph_delete_edge(RoutxGraph* graph, int64_t from_id, int64_t to_id);
 
 /**
  * Numeric multiplier for OSM ways with specific keys and values.
  */
-typedef struct RoutexOsmProfilePenalty {
+typedef struct RoutxOsmProfilePenalty {
     /// Key of an OSM way for which this penalty applies,
-    /// used for @ref RoutexOsmProfilePenalty::value "value" comparison (e.g. "highway" or
+    /// used for @ref RoutxOsmProfilePenalty::value "value" comparison (e.g. "highway" or
     /// "railway").
     char const* key;
 
-    /// Value under @ref RoutexOsmProfilePenalty::key "key" of an OSM way for which this penalty
+    /// Value under @ref RoutxOsmProfilePenalty::key "key" of an OSM way for which this penalty
     /// applies. E.g. "motorway", "residential" or "rail".
     char const* value;
 
     /// Multiplier of the length, to express preference for a specific way.
     /// Must be not less than one and a finite floating-point number.
     float penalty;
-} RoutexOsmProfilePenalty;
+} RoutxOsmProfilePenalty;
 
 /**
- * Describes how to convert OSM data into a @ref RoutexGraph.
+ * Describes how to convert OSM data into a @ref RoutxGraph.
  */
-typedef struct RoutexOsmProfile {
+typedef struct RoutxOsmProfile {
     /// Human readable name of the routing profile,
     /// customary the most specific [access tag](https://wiki.openstreetmap.org/wiki/Key:access).
     ///
@@ -267,7 +267,7 @@ typedef struct RoutexOsmProfile {
 
     /// Array of tags which OSM ways can be used for routing.
     ///
-    /// A way is matched against all @ref RoutexOsmProfilePenalty objects in order, and
+    /// A way is matched against all @ref RoutxOsmProfilePenalty objects in order, and
     /// once an exact key and value match is found; the way is used for routing,
     /// and each connection between two nodes gets a resulting cost equal
     /// to the distance between nodes multiplied the penalty.
@@ -282,10 +282,10 @@ typedef struct RoutexOsmProfile {
     /// - a highway=motorway stretch of 100 meters will be used for routing with a cost of 100.
     /// - a highway=trunk motorway of 100 meters will be used for routing with a cost of 150.
     /// - a highway=motorway_link or highway=primary won't be used for routing, as they do not
-    ///   match any @ref RoutexOsmProfilePenalty.
-    RoutexOsmProfilePenalty const* penalties;
+    ///   match any @ref RoutxOsmProfilePenalty.
+    RoutxOsmProfilePenalty const* penalties;
 
-    /// Length of the @ref RoutexOsmProfile::penalties "penalties" array.
+    /// Length of the @ref RoutxOsmProfile::penalties "penalties" array.
     size_t penalties_len;
 
     /// Array of OSM
@@ -296,7 +296,7 @@ typedef struct RoutexOsmProfile {
     /// one-way and turn restrictions.
     char const** access;
 
-    /// Length of the @ref RoutexOsmProfile::access "access" array.
+    /// Length of the @ref RoutxOsmProfile::access "access" array.
     size_t access_len;
 
     /// Force no routing over [motorroad=yes](https://wiki.openstreetmap.org/wiki/Key:motorroad)
@@ -306,7 +306,7 @@ typedef struct RoutexOsmProfile {
     /// Force ignoring of
     /// [turn restrictions](https://wiki.openstreetmap.org/wiki/Turn_restriction).
     bool disable_restrictions;
-} RoutexOsmProfile;
+} RoutxOsmProfile;
 
 /**
  * Car routing profile.
@@ -337,7 +337,7 @@ typedef struct RoutexOsmProfile {
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-#define ROUTEX_OSM_PROFILE_CAR ((RoutexOsmProfile const*)1)
+#define ROUTX_OSM_PROFILE_CAR ((RoutxOsmProfile const*)1)
 
 /**
  * Bus routing profile.
@@ -368,7 +368,7 @@ typedef struct RoutexOsmProfile {
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-#define ROUTEX_OSM_PROFILE_BUS ((RoutexOsmProfile const*)2)
+#define ROUTX_OSM_PROFILE_BUS ((RoutxOsmProfile const*)2)
 
 /**
  * Bicycle routing profile.
@@ -402,7 +402,7 @@ typedef struct RoutexOsmProfile {
  * Disallows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-#define ROUTEX_OSM_PROFILE_BICYCLE ((RoutexOsmProfile const*)3)
+#define ROUTX_OSM_PROFILE_BICYCLE ((RoutxOsmProfile const*)3)
 
 /**
  * Pedestrian routing profile.
@@ -443,7 +443,7 @@ typedef struct RoutexOsmProfile {
  *
  * Turn restrictions are only considered when explicitly tagged with `restriction:foot`.
  */
-#define ROUTEX_OSM_PROFILE_FOOT ((RoutexOsmProfile const*)4)
+#define ROUTX_OSM_PROFILE_FOOT ((RoutxOsmProfile const*)4)
 
 /**
  * Railway routing profile.
@@ -462,7 +462,7 @@ typedef struct RoutexOsmProfile {
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-#define ROUTEX_OSM_PROFILE_RAILWAY ((RoutexOsmProfile const*)5)
+#define ROUTX_OSM_PROFILE_RAILWAY ((RoutxOsmProfile const*)5)
 
 /**
  * Tram and light rail routing profile.
@@ -479,7 +479,7 @@ typedef struct RoutexOsmProfile {
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-#define ROUTEX_OSM_PROFILE_TRAM ((RoutexOsmProfile const*)6)
+#define ROUTX_OSM_PROFILE_TRAM ((RoutxOsmProfile const*)6)
 
 /**
  * Subway routing profile.
@@ -495,51 +495,51 @@ typedef struct RoutexOsmProfile {
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-#define ROUTEX_OSM_PROFILE_SUBWAY ((RoutexOsmProfile const*)7)
+#define ROUTX_OSM_PROFILE_SUBWAY ((RoutxOsmProfile const*)7)
 
 /**
  * Format of the input OSM file.
  */
-typedef enum RoutexOsmFormat {
+typedef enum RoutxOsmFormat {
     /// Unknown format - guess the format based on the content
-    RoutexOsmFormatUnknown = 0,
+    RoutxOsmFormatUnknown = 0,
 
     /// Force uncompressed [OSM XML](https://wiki.openstreetmap.org/wiki/OSM_XML)
-    RoutexOsmFormatXml = 1,
+    RoutxOsmFormatXml = 1,
 
     /// Force [OSM XML](https://wiki.openstreetmap.org/wiki/OSM_XML)
     /// with [gzip](https://en.wikipedia.org/wiki/Gzip) compression
-    RoutexOsmFormatXmlGz = 2,
+    RoutxOsmFormatXmlGz = 2,
 
     /// Force [OSM XML](https://wiki.openstreetmap.org/wiki/OSM_XML)
     /// with [bzip2](https://en.wikipedia.org/wiki/Bzip2) compression
-    RoutexOsmFormatXmlBz2 = 3,
+    RoutxOsmFormatXmlBz2 = 3,
 
     /// Force [OSM PBF](https://wiki.openstreetmap.org/wiki/PBF_Format)
-    RoutexOsmFormatPbf = 4,
-} RoutexOsmFormat;
+    RoutxOsmFormatPbf = 4,
+} RoutxOsmFormat;
 
 /**
- * Controls for interpreting OSM data as a routing @ref RoutexGraph.
+ * Controls for interpreting OSM data as a routing @ref RoutxGraph.
  */
-typedef struct RoutexOsmOptions {
-    /// How OSM features should be interpreted, see @ref RoutexOsmProfile.
+typedef struct RoutxOsmOptions {
+    /// How OSM features should be interpreted, see @ref RoutxOsmProfile.
     ///
     /// Must not be NULL. Due to C-Rust String/Vector/Slice interface mismatch,
     /// there is overhead with profile conversion.
     ///
     /// For this reason, pointer numeric values from 1 to 64 (incl.) are reserved
     /// for built-in profiles, which do not require conversion and are faster to use.
-    /// Use the ROUTEX_OSM_PROFILE_* macros to refer to them.
-    RoutexOsmProfile const* profile;
+    /// Use the ROUTX_OSM_PROFILE_* macros to refer to them.
+    RoutxOsmProfile const* profile;
 
-    /// Format of the input OSM data, see @ref RoutexOsmFormat.
-    RoutexOsmFormat file_format;
+    /// Format of the input OSM data, see @ref RoutxOsmFormat.
+    RoutxOsmFormat file_format;
 
     /// Filter features by a specific bounding box. In order: left (min lon), bottom (min lat),
     /// right (max lon), top (max lat). Ignored if all values are set to zero.
     float bbox[4];
-} RoutexOsmOptions;
+} RoutxOsmOptions;
 
 /**
  * Parses OSM data from the provided file and adds it to the provided graph.
@@ -550,7 +550,7 @@ typedef struct RoutexOsmOptions {
  * @param filename Path to the OSM file to be parsed. Must not be NULL.
  * @returns false if an error occurred, true otherwise
  */
-bool routex_graph_add_from_osm_file(RoutexGraph* graph, RoutexOsmOptions const* options,
+bool routx_graph_add_from_osm_file(RoutxGraph* graph, RoutxOsmOptions const* options,
                                     char const* filename);
 
 /**
@@ -564,34 +564,34 @@ bool routex_graph_add_from_osm_file(RoutexGraph* graph, RoutexOsmOptions const* 
  * @param content_len Length of the buffer in bytes.
  * @returns false if an error occurred, true otherwise
  */
-bool routex_graph_add_from_osm_memory(RoutexGraph* graph, RoutexOsmOptions const* options,
+bool routx_graph_add_from_osm_memory(RoutxGraph* graph, RoutxOsmOptions const* options,
                                       char const* content, size_t content_len);
 
 /**
  * High-level route search status, also used as the tag for the anonymous union in
- * @ref RoutexRouteResult.
+ * @ref RoutxRouteResult.
  */
-typedef enum RoutexRouteResultType {
+typedef enum RoutxRouteResultType {
     /// The search was successful.
-    RoutexRouteResultTypeOk = 0,
+    RoutxRouteResultTypeOk = 0,
 
     /// `from` or `to` nodes do not exist in the graph.
-    RoutexRouteResultTypeInvalidReference = 1,
+    RoutxRouteResultTypeInvalidReference = 1,
 
     /// Search exceeded its step limit. Either the nodes are really far apart, or no route exists.
     ///
     /// Concluding that no route exists requires traversing the whole graph, which can result in a
     /// denial-of-service.
     /// The step limit protects against resource exhaustion.
-    RoutexRouteResultTypeStepLimitExceeded = 2,
-} RoutexRouteResultType;
+    RoutxRouteResultTypeStepLimitExceeded = 2,
+} RoutxRouteResultType;
 
-typedef struct RoutexRouteResult {
+typedef struct RoutxRouteResult {
     union {
         /**
          * A list of node, returned as a result of successful route search.
          *
-         * Valid if and only if `type` is set to @ref RoutexRouteResultTypeOk.
+         * Valid if and only if `type` is set to @ref RoutxRouteResultTypeOk.
          */
         struct {
             /// Sequence of nodes of the route.
@@ -607,10 +607,10 @@ typedef struct RoutexRouteResult {
         } as_ok;
 
         /**
-         * The `from` or `to` parameter of routex_find_route()/
-         * routex_find_route_without_turn_around() does not exist in the graph.
+         * The `from` or `to` parameter of routx_find_route()/
+         * routx_find_route_without_turn_around() does not exist in the graph.
          *
-         * Valid if and only if `type` is set to @ref RoutexRouteResultTypeInvalidReference.
+         * Valid if and only if `type` is set to @ref RoutxRouteResultTypeInvalidReference.
          */
         struct {
             /// ID of the non-existing node
@@ -619,105 +619,105 @@ typedef struct RoutexRouteResult {
     };
 
     /**
-     * Indicates the overall outcome of routex_find_route()/
-     * routex_find_route_without_turn_around():
-     * - @ref RoutexRouteResultTypeOk - the search was successful, use `as_ok`.
-     * - @ref RoutexRouteResultTypeInvalidReference - `from` or `to` do not exist in the graph, use
+     * Indicates the overall outcome of routx_find_route()/
+     * routx_find_route_without_turn_around():
+     * - @ref RoutxRouteResultTypeOk - the search was successful, use `as_ok`.
+     * - @ref RoutxRouteResultTypeInvalidReference - `from` or `to` do not exist in the graph, use
      * `as_invalid_reference`.
-     * - @ref RoutexRouteResultTypeStepLimitExceeded - search exceeded its step limit. Either the
+     * - @ref RoutxRouteResultTypeStepLimitExceeded - search exceeded its step limit. Either the
      * nodes are really far apart, or no route exists. Concluding that no route exists requires
      * traversing the whole graph, which can result in a denial-of-service. The step limit protects
      * against resource exhaustion.
      */
-    RoutexRouteResultType type;
-} RoutexRouteResult;
+    RoutxRouteResultType type;
+} RoutxRouteResult;
 
 /**
  * Finds the shortest route between two nodes using the
  * [A* algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm) in the provided graph.
  *
- * The returned result must be destroyed by calling routex_route_result_delete().
+ * The returned result must be destroyed by calling routx_route_result_delete().
  *
- * Returns an @ref RoutexRouteResultTypeOk "ok result" with an empty vector if no route exists.
+ * Returns an @ref RoutxRouteResultTypeOk "ok result" with an empty vector if no route exists.
  *
- * For graphs with turn restrictions, use routex_find_route_without_turn_around(), as this
+ * For graphs with turn restrictions, use routx_find_route_without_turn_around(), as this
  * implementation will generate unrealistic instructions with immediate turnarounds (A-B-A) to
  * circumvent any restrictions.
  *
  * The `step_limit` parameter limits how many nodes can be expanded during search before returning
- * @ref RoutexRouteResultTypeStepLimitExceeded "step limit exceeded". Concluding that no route
+ * @ref RoutxRouteResultTypeStepLimitExceeded "step limit exceeded". Concluding that no route
  * exists requires expanding all nodes accessible from the start, which is usually very time
- * consuming, especially on large datasets. Recommended value is @ref ROUTEX_DEFAULT_STEP_LIMIT.
+ * consuming, especially on large datasets. Recommended value is @ref ROUTX_DEFAULT_STEP_LIMIT.
  */
-RoutexRouteResult routex_find_route(RoutexGraph const* graph, int64_t from, int64_t to,
+RoutxRouteResult routx_find_route(RoutxGraph const* graph, int64_t from, int64_t to,
                                     size_t step_limit);
 
 /**
  * Finds the shortest route between two nodes using the
  * [A* algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm). in the provided graph.
  *
- * The returned result must be destroyed by calling routex_route_result_delete().
+ * The returned result must be destroyed by calling routx_route_result_delete().
  *
- * Returns an @ref RoutexRouteResultTypeOk "ok result" with an empty vector if no route exists.
+ * Returns an @ref RoutxRouteResultTypeOk "ok result" with an empty vector if no route exists.
  *
- * For graphs without turn restrictions, use routex_find_route(), as it runs faster.
+ * For graphs without turn restrictions, use routx_find_route(), as it runs faster.
  * This function has an extra dimension - it needs to not only consider the current node,
  * but also what was the previous node to prevent immediate turnaround (A-B-A) instructions.
  *
  * The `step_limit` parameter limits how many nodes can be expanded during search before returning
- * @ref RoutexRouteResultTypeStepLimitExceeded "step limit exceeded". Concluding that no route
+ * @ref RoutxRouteResultTypeStepLimitExceeded "step limit exceeded". Concluding that no route
  * exists requires expanding all nodes accessible from the start, which is usually very time
- * consuming, especially on large datasets. Recommended value is @ref ROUTEX_DEFAULT_STEP_LIMIT.
+ * consuming, especially on large datasets. Recommended value is @ref ROUTX_DEFAULT_STEP_LIMIT.
  */
-RoutexRouteResult routex_find_route_without_turn_around(RoutexGraph const* graph, int64_t from,
+RoutxRouteResult routx_find_route_without_turn_around(RoutxGraph const* graph, int64_t from,
                                                         int64_t to, size_t step_limit);
 
 /**
- * Deallocates a @ref RoutexRouteResult created by routex_find_route() or
- * routex_find_route_without_turn_around().
+ * Deallocates a @ref RoutxRouteResult created by routx_find_route() or
+ * routx_find_route_without_turn_around().
  */
-void routex_route_result_delete(RoutexRouteResult);
+void routx_route_result_delete(RoutxRouteResult);
 
 /**
  * A [k-d tree data structure](https://en.wikipedia.org/wiki/K-d_tree) which can be used to
  * speed up nearest-neighbor search for large datasets.
  *
- * Practice shows that routex_graph_find_nearest_node() takes significantly more time than
- * routex_find_route() when generating multiple routes with routex. A k-d tree helps with that,
+ * Practice shows that routx_graph_find_nearest_node() takes significantly more time than
+ * routx_find_route() when generating multiple routes with routx. A k-d tree helps with that,
  * trading CPU time for memory usage.
  */
-typedef struct RoutexKDTree RoutexKDTree;
+typedef struct RoutxKDTree RoutxKDTree;
 
 /**
- * Builds a @ref RoutexKDTree with all canonical (`id == osm_id`) @ref RoutexNode "RoutexNodes"
- * contained in the provided @ref RoutexGraph.
+ * Builds a @ref RoutxKDTree with all canonical (`id == osm_id`) @ref RoutxNode "RoutxNodes"
+ * contained in the provided @ref RoutxGraph.
  *
- * Must be deallocated with routex_kd_tree_delete().
+ * Must be deallocated with routx_kd_tree_delete().
  *
  * Returns NULL if the graph has no nodes.
  */
-RoutexKDTree* routex_kd_tree_new(RoutexGraph const*);
+RoutxKDTree* routx_kd_tree_new(RoutxGraph const*);
 
 /**
- * Deallocates a @ref RoutexKDTree created by routex_kd_tree_new(). The k-d tree may be NULL.
+ * Deallocates a @ref RoutxKDTree created by routx_kd_tree_new(). The k-d tree may be NULL.
  */
-void routex_kd_tree_delete(RoutexKDTree*);
+void routx_kd_tree_delete(RoutxKDTree*);
 
 /**
  * Finds the closest node to the provided position and returns it.
  * If there are no nodes or the k-d tree is NULL, returns a zero (`id == 0`) node.
  */
-RoutexNode routex_kd_tree_find_nearest_node(RoutexKDTree const* kd_tree, float lat, float lon);
+RoutxNode routx_kd_tree_find_nearest_node(RoutxKDTree const* kd_tree, float lat, float lon);
 
 /**
  * Calculates the great-circle distance between two positions using the
  * [haversine formula](https://en.wikipedia.org/wiki/Haversine_formula).
  * Returns the result in kilometers.
  */
-float routex_earth_distance(float lat1, float lon1, float lat2, float lon2);
+float routx_earth_distance(float lat1, float lon1, float lat2, float lon2);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // ROUTEX_H
+#endif  // ROUTX_H

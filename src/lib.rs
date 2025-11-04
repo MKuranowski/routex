@@ -3,21 +3,21 @@
 
 //! Simple routing over [OpenStreetMap](https://www.openstreetmap.org/) data.
 //!
-//! Routex converts OSM data into a standard weighted directed graph representation,
+//! Routx converts OSM data into a standard weighted directed graph representation,
 //! and runs A* to find shortest paths between nodes. Interpretation of OSM data
-//! is customizable via [profiles](crate::osm::Profile). Routex supports one-way streets,
+//! is customizable via [profiles](crate::osm::Profile). Routx supports one-way streets,
 //! access tags (on ways only) and turn restrictions.
 //!
 //! # Example
 //!
 //! ```no_run
-//! let mut g = routex::Graph::new();
-//! let osm_options = routex::osm::Options {
-//!     profile: &routex::osm::CAR_PROFILE,
-//!     file_format: routex::osm::FileFormat::Unknown,
+//! let mut g = routx::Graph::new();
+//! let osm_options = routx::osm::Options {
+//!     profile: &routx::osm::CAR_PROFILE,
+//!     file_format: routx::osm::FileFormat::Unknown,
 //!     bbox: [0.0; 4],
 //! };
-//! routex::osm::add_features_from_file(
+//! routx::osm::add_features_from_file(
 //!     &mut g,
 //!     &osm_options,
 //!     "path/to/monaco.osm.pbf",
@@ -25,7 +25,7 @@
 //!
 //! let start_node = g.find_nearest_node(43.7384, 7.4246).unwrap();
 //! let end_node = g.find_nearest_node(43.7478, 7.4323).unwrap();
-//! let route = routex::find_route_without_turn_around(&g, start_node.id, end_node.id, routex::DEFAULT_STEP_LIMIT)
+//! let route = routx::find_route_without_turn_around(&g, start_node.id, end_node.id, routx::DEFAULT_STEP_LIMIT)
 //!     .expect("failed to find route");
 //!
 //! println!("Route: {:?}", route);

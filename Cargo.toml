@@ -1,9 +1,9 @@
 [package]
-name = "routex"
+name = "routx"
 version = "1.0.0"
 description = "Simple routing over OpenStreetMap data"
 authors = ["Mikołaj Kuranowski <mkuranowski+foss@gmail.com>"]
-repository = "https://github.com/mkuranowski/routex"
+repository = "https://github.com/mkuranowski/routx"
 edition = "2021"
 license = "MIT"
 
@@ -21,11 +21,11 @@ thiserror = "2.0.16"
 cli = ["dep:clap", "dep:colog"]
 
 [lib]
-name = "routex"
+name = "routx"
 path = "src/lib.rs"
 crate-type = ["lib", "staticlib", "cdylib"]
 
 [[bin]]
-name = "routex"
+name = "routx"
 path = "src/main.rs"
 required-features = ["cli"]

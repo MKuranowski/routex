@@ -18,10 +18,10 @@ use crate::{earth_distance, Graph, Node};
 /// # Example
 ///
 /// ```no_run
-/// let g = routex::Graph::new();
+/// let g = routx::Graph::new();
 /// // ... load data into g ...
 ///
-/// let kd_tree = routex::KDTree::build_from_graph(&g).unwrap();
+/// let kd_tree = routx::KDTree::build_from_graph(&g).unwrap();
 ///
 /// // Faster lookup than Graph::find_nearest_node
 /// let start_node = kd_tree.find_nearest_node(43.7384, 7.4246);

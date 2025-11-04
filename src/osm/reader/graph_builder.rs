@@ -76,7 +76,7 @@ impl<'a> GraphBuilder<'a> {
 
         // Node id invalid - ignore & warn
         if !Self::is_valid_node_id(n.id) {
-            log::warn!(target: "routex::osm", "node with invalid id {} - ignoring", n.id);
+            log::warn!(target: "routx::osm", "node with invalid id {} - ignoring", n.id);
             return;
         }
 
@@ -126,7 +126,7 @@ impl<'a> GraphBuilder<'a> {
         if !penalty.is_finite() {
             f32::INFINITY // Way not routable
         } else if penalty < 1.0 {
-            log::error!(target: "routex", "profile has invalid penalty {} - assuming non-routable", penalty);
+            log::error!(target: "routx", "profile has invalid penalty {} - assuming non-routable", penalty);
             f32::INFINITY
         } else {
             penalty
@@ -136,7 +136,7 @@ impl<'a> GraphBuilder<'a> {
     fn get_way_nodes(&self, w: &model::Way) -> Vec<i64> {
         // Check if way has enough nodes
         if w.nodes.len() < 2 {
-            log::warn!(target: "routex::osm", "way {} has less than 2 nodes - ignoring", w.id);
+            log::warn!(target: "routx::osm", "way {} has less than 2 nodes - ignoring", w.id);
             return vec![];
         }
 
@@ -432,7 +432,7 @@ impl InvalidRestriction {
             Self::ReferenceToUnknownWay(_) => {}
 
             _ => {
-                log::warn!(target: "routex::osm", "relation {} - {} - ignoring", relation_id, self);
+                log::warn!(target: "routx::osm", "relation {} - {} - ignoring", relation_id, self);
             }
         }
     }
@@ -610,17 +610,17 @@ fn is_bbox_applicable(bbox: [f32; 4]) -> bool {
 
     // Some elements non-finite - invalid bbox
     if bbox.iter().any(|x| !x.is_finite()) {
-        log::error!(target: "routex", "bounding box contains non-finite elements - ignoring");
+        log::error!(target: "routx", "bounding box contains non-finite elements - ignoring");
         return false;
     }
 
     // Check min-max pairs
     let [left, bottom, right, top] = bbox;
     if left >= right {
-        log::error!(target: "routex", "bounding box has zero areas - left >= right - ignoring");
+        log::error!(target: "routx", "bounding box has zero areas - left >= right - ignoring");
         false
     } else if bottom >= top {
-        log::error!(target: "routex", "bounding box has zero areas - bottom >= top - ignoring");
+        log::error!(target: "routx", "bounding box has zero areas - bottom >= top - ignoring");
         false
     } else {
         true

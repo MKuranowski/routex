@@ -2,11 +2,11 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use routex;
+use routx;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}: {1}")]
-struct GraphLoadError(PathBuf, #[source] routex::osm::Error);
+struct GraphLoadError(PathBuf, #[source] routx::osm::Error);
 
 #[derive(Parser)]
 struct Cli {
@@ -41,7 +41,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         .expect("no node corresponding to the given end position");
 
     let route =
-        routex::find_route_without_turn_around(&g, start.id, end.id, routex::DEFAULT_STEP_LIMIT)?;
+        routx::find_route_without_turn_around(&g, start.id, end.id, routx::DEFAULT_STEP_LIMIT)?;
 
     println!("{{");
     println!("  \"type\": \"FeatureCollection\",");
@@ -72,14 +72,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn load_graph<P: AsRef<Path>>(path: P) -> Result<routex::Graph, GraphLoadError> {
-    let mut g = routex::Graph::default();
-    let options = routex::osm::Options {
-        profile: &routex::osm::CAR_PROFILE,
-        file_format: routex::osm::FileFormat::Xml,
+fn load_graph<P: AsRef<Path>>(path: P) -> Result<routx::Graph, GraphLoadError> {
+    let mut g = routx::Graph::default();
+    let options = routx::osm::Options {
+        profile: &routx::osm::CAR_PROFILE,
+        file_format: routx::osm::FileFormat::Xml,
         bbox: [0.0; 4],
     };
-    match routex::osm::add_features_from_file(&mut g, &options, path.as_ref()) {
+    match routx::osm::add_features_from_file(&mut g, &options, path.as_ref()) {
         Ok(()) => Ok(g),
         Err(e) => Err(GraphLoadError(PathBuf::from(path.as_ref()), e)),
     }

@@ -1,10 +1,10 @@
 // (c) Copyright 2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: MIT
 
-#ifndef ROUTEX_HPP
-#define ROUTEX_HPP
+#ifndef ROUTX_HPP
+#define ROUTX_HPP
 
-#include <routex.h>
+#include <routx.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -15,22 +15,22 @@
 #include <utility>
 #include <variant>
 
-namespace routex {
+namespace routx {
 
 /// Recommended A* step limit for Graph::find_route() and Graph::find_route_without_turn_around().
-constexpr size_t DEFAULT_STEP_LIMIT = ROUTEX_DEFAULT_STEP_LIMIT;
+constexpr size_t DEFAULT_STEP_LIMIT = ROUTX_DEFAULT_STEP_LIMIT;
 
 /**
  * Sets a logging handler for the library.
  *
  * The `callback` function will be called whenever the library wants to log something.
- * Routex makes two types of logs:
+ * Routx makes two types of logs:
  *
- * - warnings with target=`routex::osm`, informing about issues with OSM data;
+ * - warnings with target=`routx::osm`, informing about issues with OSM data;
  *
- * - errors with target=`routex`, informing about input issues or failures within the library.
+ * - errors with target=`routx`, informing about input issues or failures within the library.
  *
- * Dependencies of routex technically could also make any logging calls, but they don't
+ * Dependencies of routx technically could also make any logging calls, but they don't
  * seem to do so.
  *
  * The logging levels numbers generally correspond to [Python Logging
@@ -53,7 +53,7 @@ constexpr size_t DEFAULT_STEP_LIMIT = ROUTEX_DEFAULT_STEP_LIMIT;
  *
  * @param callback function to call on a logging message, or NULL to disable logging.
  *     `arg` parameter is passed through as-is, `level` represents message severity (described
- * above), `target` describes briefly who made the logging call (e.g. `routex`), and `message` is
+ * above), `target` describes briefly who made the logging call (e.g. `routx`), and `message` is
  * the actual log message.
  * @param flush_callback function to call when the library wants to flush any buffered log
  * messages, or NULL if no flushing is needed. `arg` parameter is passed through as-is. Currently
@@ -65,7 +65,7 @@ constexpr size_t DEFAULT_STEP_LIMIT = ROUTEX_DEFAULT_STEP_LIMIT;
 void set_logging_callback(void (*callback)(void* arg, int level, char const* target,
                                            char const* message),
                           void (*flush_callback)(void* arg), void* arg, int min_level) {
-    return routex_set_logging_callback(callback, flush_callback, arg, min_level);
+    return routx_set_logging_callback(callback, flush_callback, arg, min_level);
 }
 
 /**
@@ -74,7 +74,7 @@ void set_logging_callback(void (*callback)(void* arg, int level, char const* tar
  * Returns the result in kilometers.
  */
 float earth_distance(float lat1, float lon1, float lat2, float lon2) {
-    return routex_earth_distance(lat1, lon1, lat2, lon2);
+    return routx_earth_distance(lat1, lon1, lat2, lon2);
 }
 
 /**
@@ -87,36 +87,36 @@ float earth_distance(float lat1, float lon1, float lat2, float lon2) {
  *
  * Nodes with `id == 0` signify the absence of a node.
  */
-using Node = RoutexNode;
+using Node = RoutxNode;
 
 /**
  * Outgoing (one-way) connection from a @ref Node.
  *
  * `cost` must be greater than the crow-flies distance between the two nodes.
  */
-using Edge = RoutexEdge;
+using Edge = RoutxEdge;
 
 namespace osm {
 
 /**
  * Numeric multiplier for OSM ways with specific keys and values.
  */
-using Penalty = RoutexOsmProfilePenalty;
+using Penalty = RoutxOsmProfilePenalty;
 
 /**
  * Describes how to convert OSM data into a @ref Graph.
  */
-using Profile = RoutexOsmProfile;
+using Profile = RoutxOsmProfile;
 
 /**
  * Format of the input OSM file.
  */
-using Format = RoutexOsmFormat;
+using Format = RoutxOsmFormat;
 
 /**
  * Controls for interpreting OSM data as a routing @ref Graph.
  */
-using Options = RoutexOsmOptions;
+using Options = RoutxOsmOptions;
 
 /**
  * Car routing profile.
@@ -147,7 +147,7 @@ using Options = RoutexOsmOptions;
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-Profile const* const ProfileCar = ROUTEX_OSM_PROFILE_CAR;
+Profile const* const ProfileCar = ROUTX_OSM_PROFILE_CAR;
 
 /**
  * Bus routing profile.
@@ -178,7 +178,7 @@ Profile const* const ProfileCar = ROUTEX_OSM_PROFILE_CAR;
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-Profile const* const ProfileBus = ROUTEX_OSM_PROFILE_BUS;
+Profile const* const ProfileBus = ROUTX_OSM_PROFILE_BUS;
 
 /**
  * Bicycle routing profile.
@@ -212,7 +212,7 @@ Profile const* const ProfileBus = ROUTEX_OSM_PROFILE_BUS;
  * Disallows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-Profile const* const ProfileBicycle = ROUTEX_OSM_PROFILE_BICYCLE;
+Profile const* const ProfileBicycle = ROUTX_OSM_PROFILE_BICYCLE;
 
 /**
  * Pedestrian routing profile.
@@ -253,7 +253,7 @@ Profile const* const ProfileBicycle = ROUTEX_OSM_PROFILE_BICYCLE;
  *
  * Turn restrictions are only considered when explicitly tagged with `restriction:foot`.
  */
-Profile const* const ProfileFoot = ROUTEX_OSM_PROFILE_FOOT;
+Profile const* const ProfileFoot = ROUTX_OSM_PROFILE_FOOT;
 
 /**
  * Railway routing profile.
@@ -272,7 +272,7 @@ Profile const* const ProfileFoot = ROUTEX_OSM_PROFILE_FOOT;
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-Profile const* const ProfileRailway = ROUTEX_OSM_PROFILE_RAILWAY;
+Profile const* const ProfileRailway = ROUTX_OSM_PROFILE_RAILWAY;
 
 /**
  * Tram and light rail routing profile.
@@ -289,7 +289,7 @@ Profile const* const ProfileRailway = ROUTEX_OSM_PROFILE_RAILWAY;
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-Profile const* const ProfileTram = ROUTEX_OSM_PROFILE_TRAM;
+Profile const* const ProfileTram = ROUTX_OSM_PROFILE_TRAM;
 
 /**
  * Subway routing profile.
@@ -305,10 +305,10 @@ Profile const* const ProfileTram = ROUTEX_OSM_PROFILE_TRAM;
  * Allows [motorroads](https://wiki.openstreetmap.org/wiki/Key:motorroad) and considers turn
  * restrictions.
  */
-Profile const* const ProfileSubway = ROUTEX_OSM_PROFILE_SUBWAY;
+Profile const* const ProfileSubway = ROUTX_OSM_PROFILE_SUBWAY;
 
 /**
- * Thrown when the routex library has failed to load OSM data. See logs for details.
+ * Thrown when the routx library has failed to load OSM data. See logs for details.
  */
 class LoadingFailed : std::runtime_error {
    public:
@@ -334,16 +334,16 @@ class Route : public std::span<int64_t> {
     Route& operator=(Route const&) = delete;
 
     ~Route() {
-        RoutexRouteResult raw = {
+        RoutxRouteResult raw = {
             .as_ok =
                 {
                     .nodes = data(),
                     .len = static_cast<uint32_t>(size()),
                     .capacity = m_capacity,
                 },
-            .type = RoutexRouteResultTypeOk,
+            .type = RoutxRouteResultTypeOk,
         };
-        routex_route_result_delete(raw);
+        routx_route_result_delete(raw);
     }
 
    private:
@@ -391,8 +391,8 @@ class Graph {
      * Usage:
      *
      * @code{.cpp}
-     * routex::Graph::Iterator it = graph.get_nodes();
-     * routex::Node node;
+     * routx::Graph::Iterator it = graph.get_nodes();
+     * routx::Node node;
      * while ((node = it.next()).id != 0) {
      *     // Process node
      * }
@@ -406,9 +406,9 @@ class Graph {
          * The pointer maybe null, which creates a NULL iterator, for which all operations are a
          * no-op.
          */
-        explicit Iterator(RoutexGraphIterator* i) : m_impl(i) {}
+        explicit Iterator(RoutxGraphIterator* i) : m_impl(i) {}
 
-        ~Iterator() { routex_graph_iterator_delete(m_impl); }
+        ~Iterator() { routx_graph_iterator_delete(m_impl); }
 
         Iterator(Iterator const&) = delete;
 
@@ -427,25 +427,25 @@ class Graph {
          *
          * The iterator may be NULL, in which case this function returns a zero node.
          */
-        Node next() { return routex_graph_iterator_next(m_impl); }
+        Node next() { return routx_graph_iterator_next(m_impl); }
 
        private:
-        RoutexGraphIterator* m_impl = nullptr;
+        RoutxGraphIterator* m_impl = nullptr;
     };
 
     /**
      * Allocates a new Graph.
      */
-    Graph() : m_impl(routex_graph_new()) {}
+    Graph() : m_impl(routx_graph_new()) {}
 
     /**
      * Takes ownership of a C-style Graph handle.
      *
      * The pointer maybe null, which creates a NULL Graph, for which all operations are a no-op.
      */
-    explicit Graph(RoutexGraph* g) : m_impl(g) {}
+    explicit Graph(RoutxGraph* g) : m_impl(g) {}
 
-    ~Graph() { routex_graph_delete(m_impl); }
+    ~Graph() { routx_graph_delete(m_impl); }
 
     Graph(Graph const&) = delete;
 
@@ -461,12 +461,12 @@ class Graph {
     /**
      * Returns the number of @ref Node "Nodes" in the graph.
      */
-    size_t size() const { return routex_graph_get_nodes(m_impl, nullptr); }
+    size_t size() const { return routx_graph_get_nodes(m_impl, nullptr); }
 
     /**
      * Returns true if there are no @ref Node "Nodes" in the graph.
      */
-    bool is_empty() const { return routex_graph_get_nodes(m_impl, nullptr) == 0; }
+    bool is_empty() const { return routx_graph_get_nodes(m_impl, nullptr) == 0; }
 
     /**
      * Returns an @ref Iterator over all nodes in this graph.
@@ -478,16 +478,16 @@ class Graph {
      * Usage:
      *
      * @code{.cpp}
-     * routex::Graph::Iterator it = graph.get_nodes();
-     * routex::Node node;
+     * routx::Graph::Iterator it = graph.get_nodes();
+     * routx::Node node;
      * while ((node = it.next()).id != 0) {
      *     // Process node
      * }
      * @endcode
      */
     Iterator get_nodes() const {
-        RoutexGraphIterator* it_impl = nullptr;
-        routex_graph_get_nodes(m_impl, &it_impl);
+        RoutxGraphIterator* it_impl = nullptr;
+        routx_graph_get_nodes(m_impl, &it_impl);
         return Iterator(it_impl);
     }
 
@@ -497,7 +497,7 @@ class Graph {
      *
      * If the graph is NULL, returns a zero node.
      */
-    Node get_node(int64_t id) const { return routex_graph_get_node(m_impl, id); }
+    Node get_node(int64_t id) const { return routx_graph_get_node(m_impl, id); }
 
     /**
      * Creates or updates a @ref Node with the provided id.
@@ -511,7 +511,7 @@ class Graph {
      *
      * @returns true if an existing node was updated/overwritten, false otherwise
      */
-    bool set_node(Node node) { return routex_graph_set_node(m_impl, node); }
+    bool set_node(Node node) { return routx_graph_set_node(m_impl, node); }
 
     /**
      * Deletes a @ref Node with the provided id.
@@ -525,7 +525,7 @@ class Graph {
      *
      * @returns true if a node was actually deleted, false otherwise
      */
-    bool delete_node(int64_t id) { return routex_graph_delete_node(m_impl, id); }
+    bool delete_node(int64_t id) { return routx_graph_delete_node(m_impl, id); }
 
     /**
      * Finds the closest canonical (`id == osm_id`) @ref Node to the given position.
@@ -537,7 +537,7 @@ class Graph {
      * If the graph is NULL or has no nodes, returns a zero (`id == 0`) node.
      */
     Node find_nearest_node(float lat, float lon) {
-        return routex_graph_find_nearest_node(m_impl, lat, lon);
+        return routx_graph_find_nearest_node(m_impl, lat, lon);
     }
 
     /**
@@ -548,16 +548,16 @@ class Graph {
      */
     std::span<Edge const> get_edges(int64_t from_id) const {
         Edge const* data = nullptr;
-        size_t size = routex_graph_get_edges(m_impl, from_id, &data);
+        size_t size = routx_graph_get_edges(m_impl, from_id, &data);
         return std::span<Edge const>(data, size);
     }
 
     /**
-     * Gets the cost of a @ref RoutexEdge from one node to another.
+     * Gets the cost of a @ref RoutxEdge from one node to another.
      * Returns positive infinity when the provided edge can't be found, or when the graph is NULL.
      */
     float get_edge(int64_t from_id, int64_t to_id) const {
-        return routex_graph_get_edge(m_impl, from_id, to_id);
+        return routx_graph_get_edge(m_impl, from_id, to_id);
     }
 
     /**
@@ -572,7 +572,7 @@ class Graph {
      * @returns true if an existing edge was updated, false otherwise
      */
     bool set_edge(int64_t from_id, Edge edge) {
-        return routex_graph_set_edge(m_impl, from_id, edge);
+        return routx_graph_set_edge(m_impl, from_id, edge);
     }
 
     /**
@@ -582,7 +582,7 @@ class Graph {
      * @returns true if an edge was removed, false otherwise
      */
     bool delete_edge(int64_t from_id, int64_t to_id) {
-        return routex_graph_delete_edge(m_impl, from_id, to_id);
+        return routx_graph_delete_edge(m_impl, from_id, to_id);
     }
 
     /**
@@ -604,19 +604,19 @@ class Graph {
      * If `from` or `to` don't exist, throws @ref InvalidReference.
      */
     Route find_route(int64_t from, int64_t to, size_t step_limit = DEFAULT_STEP_LIMIT) const {
-        auto result = routex_find_route(m_impl, from, to, step_limit);
+        auto result = routx_find_route(m_impl, from, to, step_limit);
         switch (result.type) {
-            [[likely]] case RoutexRouteResultTypeOk:
+            [[likely]] case RoutxRouteResultTypeOk:
                 return Route(result.as_ok.nodes, result.as_ok.len, result.as_ok.capacity);
 
-            case RoutexRouteResultTypeInvalidReference:
+            case RoutxRouteResultTypeInvalidReference:
                 throw InvalidReference(result.as_invalid_reference.invalid_node_id);
 
-            case RoutexRouteResultTypeStepLimitExceeded:
+            case RoutxRouteResultTypeStepLimitExceeded:
                 throw StepLimitExceeded();
 
             default:
-                std::abort();  // invalid RoutexRouteResultType
+                std::abort();  // invalid RoutxRouteResultType
         }
     }
 
@@ -626,7 +626,7 @@ class Graph {
      *
      * Returns an empty @ref Route no route exists.
      *
-     * For graphs without turn restrictions, use routex_find_route(), as it runs faster.
+     * For graphs without turn restrictions, use routx_find_route(), as it runs faster.
      * This function has an extra dimension - it needs to not only consider the current node,
      * but also what was the previous node to prevent immediate turnaround (A-B-A) instructions.
      *
@@ -640,19 +640,19 @@ class Graph {
      */
     Route find_route_without_turn_around(int64_t from, int64_t to,
                                          size_t step_limit = DEFAULT_STEP_LIMIT) const {
-        auto result = routex_find_route_without_turn_around(m_impl, from, to, step_limit);
+        auto result = routx_find_route_without_turn_around(m_impl, from, to, step_limit);
         switch (result.type) {
-            [[likely]] case RoutexRouteResultTypeOk:
+            [[likely]] case RoutxRouteResultTypeOk:
                 return Route(result.as_ok.nodes, result.as_ok.len, result.as_ok.capacity);
 
-            case RoutexRouteResultTypeInvalidReference:
+            case RoutxRouteResultTypeInvalidReference:
                 throw InvalidReference(result.as_invalid_reference.invalid_node_id);
 
-            case RoutexRouteResultTypeStepLimitExceeded:
+            case RoutxRouteResultTypeStepLimitExceeded:
                 throw StepLimitExceeded();
 
             default:
-                std::abort();  // invalid RoutexRouteResultType
+                std::abort();  // invalid RoutxRouteResultType
         }
     }
 
@@ -664,7 +664,7 @@ class Graph {
      * @throws @ref osm::LoadingFailed if loading has failed, see logs in such case
      */
     void add_from_osm_file(osm::Options const* options, char const* filename) {
-        if (!routex_graph_add_from_osm_file(m_impl, options, filename)) [[unlikely]] {
+        if (!routx_graph_add_from_osm_file(m_impl, options, filename)) [[unlikely]] {
             throw osm::LoadingFailed();
         }
     }
@@ -679,13 +679,13 @@ class Graph {
      * @throws @ref osm::LoadingFailed if loading has failed, see logs in such case
      */
     void add_from_osm_memory(osm::Options const* options, char const* data, size_t len) {
-        if (!routex_graph_add_from_osm_memory(m_impl, options, data, len)) [[unlikely]] {
+        if (!routx_graph_add_from_osm_memory(m_impl, options, data, len)) [[unlikely]] {
             throw osm::LoadingFailed();
         }
     }
 
    private:
-    RoutexGraph* m_impl = nullptr;
+    RoutxGraph* m_impl = nullptr;
 };
 
 class KDTree {
@@ -693,7 +693,7 @@ class KDTree {
     /// Empty constructor for KDTree is ambiguous, use KDTree::build or KDTree(nullptr) explicitly.
     KDTree() = delete;
 
-    ~KDTree() { routex_kd_tree_delete(m_impl); }
+    ~KDTree() { routx_kd_tree_delete(m_impl); }
 
     /**
      * Builds a k-d tree with all canonical (`id == osm_id`) @ref Node "Nodes"
@@ -702,14 +702,14 @@ class KDTree {
      * If there are no nodes in the @ref Graph, creates a NULL k-d tree, for which all operations
      * are a no-op.
      */
-    static KDTree build(Graph const& graph) { return KDTree(routex_kd_tree_new(graph.m_impl)); }
+    static KDTree build(Graph const& graph) { return KDTree(routx_kd_tree_new(graph.m_impl)); }
 
     /**
      * Takes ownership of a C-style Graph handle.
      *
      * The pointer may be null, which creates a NULL Graph, for which all operations are a no-op.
      */
-    explicit KDTree(RoutexKDTree* t) : m_impl(t) {}
+    explicit KDTree(RoutxKDTree* t) : m_impl(t) {}
 
     KDTree(KDTree const&) = delete;
 
@@ -727,13 +727,13 @@ class KDTree {
      * If there are no nodes or the k-d tree is NULL, returns a zero (`id == 0`) node.
      */
     Node find_nearest_node(float lat, float lon) {
-        return routex_kd_tree_find_nearest_node(m_impl, lat, lon);
+        return routx_kd_tree_find_nearest_node(m_impl, lat, lon);
     }
 
    private:
-    RoutexKDTree* m_impl = nullptr;
+    RoutxKDTree* m_impl = nullptr;
 };
 
-}  // namespace routex
+}  // namespace routx
 
-#endif  // ROUTEX_HPP
+#endif  // ROUTX_HPP

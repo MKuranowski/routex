@@ -3,7 +3,7 @@
 
 //! Simple routing over [OpenStreetMap](https://www.openstreetmap.org/) data.
 //!
-//! It converts OSM data into a standard weighted directed graph representation,
+//! Routex converts OSM data into a standard weighted directed graph representation,
 //! and runs A* to find shortest paths between nodes. Interpretation of OSM data
 //! is customizable via [profiles](crate::osm::Profile). Routex supports one-way streets,
 //! access tags (on ways only) and turn restrictions.

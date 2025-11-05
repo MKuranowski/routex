@@ -8,17 +8,13 @@ project(
 )
 
 # Get the library filename suffix
+# We always use .so on non-Windows systems, as Meson only _really_ considers
+# .so and .dll files into libdir as real libraries.
+# See the predefined "runtime" install tag, https://mesonbuild.com/Installing.html#installation-tags.
 if host_machine.system() == 'windows'
   dynamic_lib_suffix = '.dll'
   static_lib_suffix = '.lib'
-elif host_machine.system() == 'darwin'
-  dynamic_lib_suffix = '.dylib'
-  static_lib_suffix = '.a'
-elif host_machine.system() == 'linux'
-  dynamic_lib_suffix = '.so'
-  static_lib_suffix = '.a'
 else
-  warning('Unknown target system: ', host_machine.system(), ' - assuming dynamic libraries use \'.so\' and static libraries use \'.a\'')
   dynamic_lib_suffix = '.so'
   static_lib_suffix = '.a'
 endif

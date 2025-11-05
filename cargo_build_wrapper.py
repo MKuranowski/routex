@@ -62,26 +62,34 @@ with cwd(project_root):
     print("+", cmd[0], *args[1:], file=sys.stderr)
     subprocess.run(args, check=True)
 
-# Determine the output directory
+# Determine the output directory and files
 if target:
     target_dir = project_root / "target" / target / ("release" if release else "debug")
+    is_windows = "-windows-" in target
+    is_macos = "-apple-" in target
 else:
     target_dir = project_root / "target" / ("release" if release else "debug")
+    is_windows = sys.platform in ("win32", "cygwin")
+    is_macos = sys.platform == "darwin"
+
+if is_windows:
+    src_dynamic_name = "routx.dll"
+    src_static_name = "routx.lib"
+elif is_macos:
+    src_dynamic_name = "libroutx.dylib"
+    src_static_name = "libroutx.a"
+else:
+    src_dynamic_name = "libroutx.so"
+    src_static_name = "libroutx.a"
 
 # Copy out the dynamic library
 if out_dynamic:
-    src_dynamic = target_dir / out_dynamic.name
-    if not src_dynamic.exists() and out_dynamic.name.startswith("lib"):
-        # Windows workaround, instead of "libroutx.dll" Cargo produces "routx.dll"
-        src_dynamic = target_dir / out_dynamic.name[3:]
+    src_dynamic = target_dir / src_dynamic_name
     print("+", "cp", src_dynamic, out_dynamic, file=sys.stderr)
     shutil.copy2(src_dynamic, out_dynamic)
 
 # Copy out the static library
 if out_static:
-    src_static = target_dir / out_static.name
-    if not src_static.exists() and out_static.name.startswith("lib"):
-        # Windows workaround, instead of "libroutx.lib" Cargo produces "routx.lib"
-        src_static = target_dir / out_static.name[3:]
+    src_static = target_dir / src_static_name
     print("+", "cp", src_static, out_static, file=sys.stderr)
     shutil.copy2(src_static, out_static)

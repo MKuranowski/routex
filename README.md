@@ -1,24 +1,16 @@
 # routx
 
+[GitHub](https://github.com/MKuranowski/routx) |
+[Documentation](https://docs.rs/routx/latest/routx/) |
+[Issue Tracker](https://github.com/MKuranowski/routx/issues) |
+[crates.io](https://crates.io/crates/routx)
+
 Simple routing over [OpenStreetMap](https://www.openstreetmap.org/) data.
 
 It converts OSM data into a standard weighted directed graph representation,
 and runs A* to find shortest paths between nodes. Interpretation of OSM data
 is customizable via [profiles](crate::osm::Profile). Routx supports one-way streets,
 access tags (on ways only) and turn restrictions.
-
-## TODOs
-
-- [x] Rust library
-- [x] C bindings
-    - [x] Graphs
-    - [x] K-D Tree
-    - [x] OSM
-    - [x] Common Profiles
-    - [x] Logging
-- [x] C++ bindings
-- [ ] Python bindings
-- [ ] CLI program
 
 ## Usage
 
@@ -212,7 +204,8 @@ dependency_names = routx
 
 ### Python
 
-> ⚠️🏗️ Python bindings are work-in-progress
+Python bindings are kept in a [separate repository](https://github.com/MKuranowski/routx-python)
+and [published on PyPI](https://pypi.org/project/routx/).
 
 ## Cross-Compiling
 

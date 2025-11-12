@@ -42,8 +42,8 @@ pub enum Error {
     #[error("Blob too large: {0} > {MAX_BLOB_SIZE}")]
     BlobTooLarge(u32),
 
-    #[error("BlobHeader.type: got {got:?}, expected {expected:?}")]
-    UnexpectedBlobHeaderType { got: String, expected: &'static str },
+    #[error("OSMData blob in file was not preceded by a OSMHeader blob")]
+    DataBlobBeforeHeader,
 
     #[error("BlobHeader.datasize is negative")]
     NegativeBlobHeaderSize,
@@ -82,6 +82,7 @@ impl<R: io::Read> File<R> {
         FileBlocks {
             reader: self.0,
             done: false,
+            seen_header: false,
         }
     }
 
@@ -96,6 +97,7 @@ impl<R: io::Read> File<R> {
 struct FileBlocks<R: io::Read> {
     reader: R,
     done: bool,
+    seen_header: bool,
 }
 
 impl<R: io::Read> Iterator for FileBlocks<R> {
@@ -105,51 +107,71 @@ impl<R: io::Read> Iterator for FileBlocks<R> {
         if self.done {
             None
         } else {
-            let result = match self.read_and_check_header() {
-                Ok(true) => Some(self.read_data()),
-                Ok(false) => None,
-                Err(e) => Some(Err(e)),
-            };
-
-            self.done = match &result {
-                None | Some(Err(_)) => true,
-                Some(Ok(_)) => false,
-            };
-
-            result
+            match self.read_until_next_block() {
+                Ok(Some(block)) => Some(Ok(block)),
+                Ok(None) => {
+                    self.done = true;
+                    None
+                }
+                Err(e) => {
+                    self.done = true;
+                    Some(Err(e))
+                }
+            }
         }
     }
 }
 
 impl<R: io::Read> FileBlocks<R> {
-    /// Reads the next size + [fileformat::BlobHeader] + [fileformat::Blob] sequence,
-    /// expecting an `OSMHeader` block containing an [osmformat::HeaderBlock].
-    ///
-    /// Returns `Ok(true)` if a header block was successfully read and validated,
-    /// `Ok(false)` on EOF, or an [Error] if anything bad has happened.
-    fn read_and_check_header(&mut self) -> Result<bool, Error> {
-        // 1. Read the BlobHeader size
-        let blob_header_size = match self.read_blob_header_size()? {
-            Some(size) => size,
-            None => return Ok(false), // no more blobs
-        };
+    fn read_until_next_block(&mut self) -> Result<Option<Block>, Error> {
+        // Loop until EOF or a Block
+        loop {
+            // 1. Read 4 bytes with the size of the following BlobHeader
+            let blob_header_size = match self.read_blob_header_size()? {
+                Some(i) => i,
+                None => return Ok(None),
+            };
 
-        // 2. Read the BlobHeader
-        let blob_header = self.read_blob_header(blob_header_size)?;
+            // 2. Read the BlobHeader
+            let blob_header = self.read_blob_header(blob_header_size)?;
+            let blob_size = blob_header.datasize();
 
-        // 2.1. Verify the BlobHeader.type
-        if blob_header.type_() != "OSMHeader" {
-            return Err(Error::UnexpectedBlobHeaderType {
-                got: blob_header.type_.unwrap_or_default(),
-                expected: "OSMHeader",
-            });
+            // 3. Make a decision depending on the blob type
+            match blob_header.type_() {
+                "OSMHeader" => {
+                    self.read_and_check_header(blob_size)?;
+                    self.seen_header = true;
+                }
+
+                "OSMData" => {
+                    if !self.seen_header {
+                        return Err(Error::DataBlobBeforeHeader);
+                    }
+                    return Ok(Some(self.read_data(blob_size)?));
+                }
+
+                _ => {
+                    // "Parsers should ignore and skip fileblock types that they do not recognize."
+                    // https://wiki.openstreetmap.org/wiki/PBF_Format#Encoding_OSM_entities_into_fileblocks
+                    // Unfortunately, io::Read doesn't have an easy way to discard data, so
+                    // we still have to allocate the blob.
+                    _ = self.read_blob(blob_size)?;
+                }
+            }
         }
+    }
 
-        // 3. Read the OSMHeader blob
-        let blob = self.read_blob(blob_header.datasize())?;
+    /// Reads the next [fileformat::Blob], assuming it's an `OSMHeader`
+    /// block containing an [osmformat::HeaderBlock].
+    ///
+    /// Returns `Ok(())` if a header block was successfully read and validated,
+    /// or an [Error] if anything bad has happened.
+    fn read_and_check_header(&mut self, blob_size: i32) -> Result<(), Error> {
+        // 1. Read the OSMHeader blob
+        let blob = self.read_blob(blob_size)?;
         let header = osmformat::HeaderBlock::parse_from_bytes(&blob)?;
 
-        // 3.1. Check required features
+        // 2. Check required features
         let mut unknown_features = Vec::new();
         for required_feature in &header.required_features {
             match required_feature.as_str() {
@@ -161,37 +183,14 @@ impl<R: io::Read> FileBlocks<R> {
             return Err(Error::UnsupportedFeatures(unknown_features));
         }
 
-        // OSMHeader blob read and verified - proceed to read PrimitiveBlock
-        Ok(true)
+        // OSMHeader blob read and verified
+        Ok(())
     }
 
-    /// Reads the next size + [fileformat::BlobHeader] + [fileformat::Blob] sequence,
-    /// expecting an `OSMData` block containing an [Block] ([osmformat::PrimitiveBlock]).
-    fn read_data(&mut self) -> Result<Block, Error> {
-        // 1. Read the BlobHeader size
-        let blob_header_size = match self.read_blob_header_size()? {
-            Some(size) => size,
-            None => {
-                return Err(Error::Io(Arc::new(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "expected BlobHeader for PrimitiveBlock, got EOF",
-                ))))
-            }
-        };
-
-        // 2. Read the BlobHeader
-        let blob_header = self.read_blob_header(blob_header_size)?;
-
-        // 2.1. Verify the BlobHeader.type
-        if blob_header.type_() != "OSMData" {
-            return Err(Error::UnexpectedBlobHeaderType {
-                got: blob_header.type_.unwrap_or_default(),
-                expected: "OSMData",
-            });
-        }
-
-        // 3. Read the PrimitiveBlock blob
-        let blob = self.read_blob(blob_header.datasize())?;
+    /// Reads the next [fileformat::Blob], assuming it's an `OSMData`
+    /// block containing an [Block] ([osmformat::PrimitiveBlock]).
+    fn read_data(&mut self, blob_size: i32) -> Result<Block, Error> {
+        let blob = self.read_blob(blob_size)?;
         let block = osmformat::PrimitiveBlock::parse_from_bytes(&blob)?;
         Ok(Block(block))
     }

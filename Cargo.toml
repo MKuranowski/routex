@@ -1,6 +1,6 @@
 [package]
 name = "routx"
-version = "1.0.2"
+version = "1.0.3"
 description = "Simple routing over OpenStreetMap data"
 authors = ["Mikołaj Kuranowski <mkuranowski+foss@gmail.com>"]
 repository = "https://github.com/mkuranowski/routx"

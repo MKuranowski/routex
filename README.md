@@ -193,7 +193,7 @@ int main(void) {
 ```ini
 [wrap-git]
 url = https://github.com/mkuranowski/routx.git
-revision = v1.0.2
+revision = v1.0.3
 depth = 1
 
 [provides]
